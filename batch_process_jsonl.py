@@ -42,6 +42,9 @@ def main():
 
 	with open(input_path, 'r', encoding='utf-8') as in_file, \
 			open(output_path, 'w', encoding='utf-8') as out_file:
+		
+		# also load the exiting imgids to avoid duplicates
+		imgids_list= [json.loads(lin)['imgid'] if os.path.exists(output_path) else [] for lin in open(output_path, 'r', encoding='utf-8') ]
 
 		for line_num, line in enumerate(in_file, 1):
 			line = line.strip()
@@ -56,6 +59,10 @@ def main():
 				# process only specified split
 				if data.get("split") != split_focus:
 					print(f"Line {line_num}: Skipping, not in split '{split_focus}'")
+					continue
+
+				if len(imgids_list) > 0 and data.get("imgid") in imgids_list:
+					print(f"Line {line_num}: Skipping, imgid {data.get('imgid')} already processed")
 					continue
 
 				# Check token count
