@@ -1,0 +1,12 @@
+Generate sample data with specific row-column permutations:
+
+Original structure:
+{{ original_structure }}
+
+Apply these permutations:
+{{ permutations }}
+
+Generate output in {{ output_format }} format that shows:
+1. Original data sample
+2. Permuted data sample
+3. Transformation log

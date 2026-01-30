@@ -1,0 +1,15 @@
+Analyze the following table data and generate row-column permutation instructions:
+
+Data:
+{{ data }}
+
+Requirements:
+- Type of operation: {{ operation_type }}  (row only, column only, or both)
+- Number of permutations: {{ num_permutations }}
+- Additional constraints: {{ constraints }}
+
+Provide the permutation instructions as a JSON array with this structure:
+[
+  {"type": "row", "first": 1, "second": 2},
+  {"type": "column", "first": "col_name", "second": "other_col"}
+]

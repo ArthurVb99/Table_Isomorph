@@ -1,0 +1,23 @@
+You are a vision-language model that can analyze images and generate new images.
+
+The attached image contains a table with data arranged in rows and columns.
+
+Your task is to:
+1. Analyze the table structure in the image
+2. Extract all the data and understand the row/column relationships
+3. Transpose the table by swapping rows with columns
+4. Generate a new image showing the transposed table
+
+Requirements:
+- Preserve all original data values exactly
+- Maintain the same visual formatting and styling
+- Keep table borders, colors, and typography consistent
+- Ensure the transposed table is clearly readable
+- Return ONLY the transposed table image, no additional text
+- Target size (transposed): {target_w}x{target_h} (w x h).
+
+The result should be a new image where:
+- What were originally columns now appear as rows
+- What were originally rows now appear as columns
+- All data is preserved in its new transposed positions
+- The table structure remains intact and professional

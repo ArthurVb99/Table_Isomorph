@@ -1,0 +1,5 @@
+Enhance the image with these adjustments:
+- Brightness: {{ brightness }}
+- Contrast: {{ contrast }}
+- Saturation: {{ saturation }}
+- Apply: {{ apply }}

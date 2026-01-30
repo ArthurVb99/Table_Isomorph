@@ -1,0 +1,11 @@
+Read and parse the following data file format ({{ file_format }}):
+
+File name: {{ file_name }}
+Content:
+{{ file_content }}
+
+Extract the data and identify:
+1. Column names and types
+2. Row count and structure
+3. Any patterns or anomalies
+4. Recommended transformations for row-column permutations

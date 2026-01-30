@@ -1,0 +1,63 @@
+Parse, analyze, transpose and transform HTML table data structure:
+
+Input Data:
+{{ input_data }}
+
+Data Structure Format:
+{
+  "imgid": <integer>,
+  "html": {
+    "cells": [
+      {"tokens": [<token_array>], "bbox": [x1, y1, x2, y2]},
+      ...
+    ],
+    "structure": {"tokens": [<html_structure>]}
+  },
+  "split": <dataset_split>,
+  "filename": <source_file>
+}
+
+Task Requirements:
+1. Parse the nested structure - extract cells, tokens, and bounding boxes
+2. Analyze the table hierarchy:
+   - Identify header rows (cells within <thead>)
+   - Identify data rows (cells within <tbody>)
+   - Determine row and column count
+3. Reconstruct table as row-column matrix from cells
+4. Apply transposition: swap row positions with column positions
+5. Re-map bounding boxes to reflect transposed layout
+6. Generate new HTML structure preserving table semantics
+7. Return result in identical input structure format
+
+Processing Rules:
+- Preserve all original tokens character-by-character
+- Update bounding boxes (bbox) coordinates after transposition
+- Maintain cell order and nesting relationships
+- Keep metadata fields (imgid, split, filename) unchanged
+- Validate cell count remains constant
+
+Return Structure (same format as input):
+{
+  "imgid": {{ imgid }},
+  "html": {
+    "cells": [
+      {"tokens": [<transposed_tokens>], "bbox": [<new_coordinates>]},
+      ...
+    ],
+    "structure": {"tokens": [<transposed_html_structure>]}
+  },
+  "split": "{{ split }}",
+  "filename": "{{ filename }}"
+}
+
+Transposition Logic:
+- Original header row becomes leftmost column
+- Original data columns become data rows
+- Bounding box coordinates: (x1, y1, x2, y2) adjusted for column-to-row mapping
+- HTML structure updated to reflect new row-column relationships
+
+Validation:
+- Total cell count before = Total cell count after
+- All tokens preserved exactly
+- Structure integrity maintained
+

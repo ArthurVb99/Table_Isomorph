@@ -1,0 +1,8 @@
+Analyze the following text and extract key information:
+
+Text: {{ text }}
+
+Format your response with:
+- Summary
+- Key Points
+- Important Entities
