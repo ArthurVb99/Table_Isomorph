@@ -382,6 +382,7 @@ class ImagePromptEditor:
         payload = {
             # Any model that supports tool use; the tool itself uses GPT Image models underneath. :contentReference[oaicite:2]{index=2}
             "model": "gpt-5",
+            
             "tools": [{"type": "image_generation"}],
             # Force an image output (so you reliably get an edited image back)
             "tool_choice": {"type": "image_generation"},

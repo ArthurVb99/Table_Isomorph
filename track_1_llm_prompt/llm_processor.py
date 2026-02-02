@@ -30,7 +30,7 @@ class LLMPromptProcessor:
         self,
         provider: str = "openai",
         model: str = "gpt-3.5-turbo",
-        temperature: float = 0.7,
+        temperature: float =1,
         **kwargs
     ):
         """

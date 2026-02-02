@@ -41,7 +41,7 @@ def main():
 	print(f"Output will be saved to: {output_path}")
 
 	with open(input_path, 'r', encoding='utf-8') as in_file, \
-			open(output_path, 'w', encoding='utf-8') as out_file:
+			open(output_path, 'a', encoding='utf-8') as out_file:
 		
 		# also load the exiting imgids to avoid duplicates
 		imgids_list= [json.loads(lin)['imgid'] if os.path.exists(output_path) else [] for lin in open(output_path, 'r', encoding='utf-8') ]
