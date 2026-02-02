@@ -11,6 +11,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from track_2_image_editing.image_editor import ImagePromptEditor
 
+ # Get input path from environment variable
+MAX_IMG = os.getenv("MAX_PROCESSED_IMAGES", "1001")
 
 def process_single_image(item_data: dict, output_path: Path, editor: ImagePromptEditor, lock: Lock) -> tuple:
     """
@@ -56,12 +58,18 @@ def process_single_image(item_data: dict, output_path: Path, editor: ImagePrompt
         output_filename = f"{Path(filename).stem}_transposed{Path(filename).suffix}"
         output_file_path = output_path / output_filename
 
+        # control the number of processed images
+        if line_num > MAX_IMG:
+            with lock:
+                print(f"Line {line_num}: Reached processing limit of 1000 images, stopping.")
+            return False, line_num, imgid, None, "Processing limit reached"
         # if the output file already exists, skip processing
+
         if output_file_path.exists():
             with lock:
                 print(f"Line {line_num}: ✓ Transposed image already exists: {output_file_path}")
             return True, line_num, imgid, str(output_file_path), None
-
+        # prompt the editor to transpose the table in the image
         result_path = editor.transpose_table_image(
             str(image_path),
             output_filename=str(output_file_path)

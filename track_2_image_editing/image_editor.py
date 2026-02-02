@@ -406,7 +406,7 @@ class ImagePromptEditor:
             "https://api.openai.com/v1/responses",
             headers=headers,
             json=payload,
-            timeout=120,
+            #timeout=120,
         )
         resp.raise_for_status()
         result = resp.json()
