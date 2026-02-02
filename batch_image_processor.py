@@ -59,7 +59,7 @@ def process_single_image(item_data: dict, output_path: Path, editor: ImagePrompt
         output_file_path = output_path / output_filename
 
         # control the number of processed images
-        if line_num > MAX_IMG:
+        if line_num > int(MAX_IMG):
             with lock:
                 print(f"Line {line_num}: Reached processing limit of 1000 images, stopping.")
             return False, line_num, imgid, None, "Processing limit reached"
