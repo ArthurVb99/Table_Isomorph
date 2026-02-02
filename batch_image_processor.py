@@ -30,6 +30,7 @@ def process_single_image(item_data: dict, output_path: Path, editor: ImagePrompt
     imgid = data.get('imgid')
     split = data.get('split')
     filename = data.get('filename')
+    in_dir = item_data.get('in_dir', '')
 
     try:
         if not all([split, filename]):
@@ -39,7 +40,7 @@ def process_single_image(item_data: dict, output_path: Path, editor: ImagePrompt
             return False, line_num, imgid, None, error_msg
 
         # Construct image path
-        image_path = Path(split) / filename
+        image_path = Path(in_dir) / split/ filename
 
         # Check if image exists
         if not image_path.exists():
@@ -85,86 +86,89 @@ def process_single_image(item_data: dict, output_path: Path, editor: ImagePrompt
 
 
 def process_jsonl_images(jsonl_path: str, output_dir: str = "processed_images",
-                        editor: ImagePromptEditor = None, max_workers: int = 80):
-    """
-    Process images from JSONL file by transposing tables using parallel processing.
+						editor: ImagePromptEditor = None, max_workers: int = 80):
+	"""
+	Process images from JSONL file by transposing tables using parallel processing.
 
-    Args:
-        jsonl_path (str): Path to the JSONL file containing image metadata
-        output_dir (str): Directory to save processed images
-        editor (ImagePromptEditor): Image editor instance (created if None)
-        max_workers (int): Maximum number of concurrent threads
-    """
-    # Create output directory if it doesn't exist
-    output_path = Path(output_dir)
-    output_path.mkdir(exist_ok=True)
+	Args:
+		jsonl_path (str): Path to the JSONL file containing image metadata
+		output_dir (str): Directory to save processed images
+		editor (ImagePromptEditor): Image editor instance (created if None)
+		max_workers (int): Maximum number of concurrent threads
+	"""
+	# Create output directory if it doesn't exist
+	output_path = Path(output_dir)
+	output_path.mkdir(exist_ok=True)
 
-    # Initialize editor if not provided
-    if editor is None:
-        editor = ImagePromptEditor()
+	jsonl_dir = Path(jsonl_path).parent
 
-    # Thread lock for safe printing
-    print_lock = Lock()
+	# Initialize editor if not provided
+	if editor is None:
+		editor = ImagePromptEditor()
 
-    # Collect all items to process
-    items_to_process = []
-    total_lines = 0
+	# Thread lock for safe printing
+	print_lock = Lock()
 
-    print(f"Reading JSONL file: {jsonl_path}")
-    with open(jsonl_path, 'r', encoding='utf-8') as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
+	# Collect all items to process
+	items_to_process = []
+	total_lines = 0
 
-            try:
-                data = json.loads(line)
-                items_to_process.append({
-                    'line_num': line_num,
-                    'data': data
-                })
-                total_lines = line_num
-            except json.JSONDecodeError as e:
-                with print_lock:
-                    print(f"Line {line_num}: Invalid JSON: {e}")
+	print(f"Reading JSONL file: {jsonl_path}")
+	with open(jsonl_path, 'r', encoding='utf-8') as f:
+		for line_num, line in enumerate(f, 1):
+			line = line.strip()
+			if not line:
+				continue
 
-    print(f"Found {len(items_to_process)} valid items to process")
-    print(f"Output directory: {output_dir}")
-    print(f"Using {max_workers} concurrent threads")
-    print("=" * 60)
+			try:
+				data = json.loads(line)
+				items_to_process.append({
+					'line_num': line_num,
+					'data': data,
+					'in_dir': str(jsonl_dir)
+				})
+				total_lines = line_num
+			except json.JSONDecodeError as e:
+				with print_lock:
+					print(f"Line {line_num}: Invalid JSON: {e}")
 
-    # Process images in parallel
-    processed_count = 0
-    error_count = 0
+	print(f"Found {len(items_to_process)} valid items to process")
+	print(f"Output directory: {output_dir}")
+	print(f"Using {max_workers} concurrent threads")
+	print("=" * 60)
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks
-        future_to_item = {
-            executor.submit(process_single_image, item, output_path, editor, print_lock): item
-            for item in items_to_process
-        }
+	# Process images in parallel
+	processed_count = 0
+	error_count = 0
 
-        # Collect results as they complete
-        for future in as_completed(future_to_item):
-            success, line_num, imgid, result_path, error = future.result()
-            if success:
-                processed_count += 1
-            else:
-                error_count += 1
+	with ThreadPoolExecutor(max_workers=max_workers) as executor:
+		# Submit all tasks
+		future_to_item = {
+			executor.submit(process_single_image, item, output_path, editor, print_lock): item
+			for item in items_to_process
+		}
 
-    print("\n" + "=" * 60)
-    print("Processing complete!")
-    print(f"Successfully processed: {processed_count} images")
-    print(f"Errors: {error_count}")
-    print(f"Output directory: {output_path}")
-    print(f"Total items processed: {processed_count + error_count}")
+		# Collect results as they complete
+		for future in as_completed(future_to_item):
+			success, line_num, imgid, result_path, error = future.result()
+			if success:
+				processed_count += 1
+			else:
+				error_count += 1
+
+	print("\n" + "=" * 60)
+	print("Processing complete!")
+	print(f"Successfully processed: {processed_count} images")
+	print(f"Errors: {error_count}")
+	print(f"Output directory: {output_path}")
+	print(f"Total items processed: {processed_count + error_count}")
 
 
 def main():
     """Main function - configure paths here"""
 
     # Get input path from environment variable
-    jsonl_file = os.getenv("PATH_INPUT_DATA_JSONL", "")
+    jsonl_file = os.getenv("PATH_INPUT_DATA_JSONL_VLM", "")
     provider = os.getenv("VLM_PROVIDER", "openai")
     model = os.getenv("MODEL", "gpt-5")
 	# Configure number of threads (adjust based on your system)
@@ -185,7 +189,7 @@ def main():
 
     # Initialize image editor with provider and model
     try:
-        editor = ImagePromptEditor(vlm_provider=provider, model=model)
+        editor = ImagePromptEditor(vlm_provider=provider)
         print(f"✓ Initialized {provider} VLM provider with model {model}")
     except Exception as e:
         print(f"Error initializing VLM provider: {e}")
