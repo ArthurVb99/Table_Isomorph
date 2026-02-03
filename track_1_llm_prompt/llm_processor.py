@@ -10,12 +10,14 @@ import tiktoken
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from dotenv import load_dotenv
-from typing import Optional, List
+from typing import Any, Optional, List
 from langchain_community.llms import OpenAI
 from langchain_community.chat_models import ChatOpenAI
 # from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 import requests
+
+from track_1_llm_prompt.validators import LLMTableModel
 
 load_dotenv()
 
@@ -69,14 +71,14 @@ class LLMPromptProcessor:
 
     def _init_openai(self):
         """Initialize OpenAI provider."""
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
 
         self.llm = ChatOpenAI(
             model_name=self.model,
             temperature=self.temperature,
-            openai_api_key=api_key
+            openai_api_key=self.openai_api_key
         )
 
     def _init_ollama(self):
@@ -119,8 +121,13 @@ class LLMPromptProcessor:
         """
         try:
             if self.provider == "openai":
-                response = self.llm.invoke([HumanMessage(content=prompt)])
-                return response.content
+                # structured_llm = self.llm.with_structured_output(LLMTableModel)
+                # response = structured_llm.invoke([HumanMessage(content=prompt)])
+                # convert to JSON string
+                # return response.json()
+                # response = self.llm.invoke([HumanMessage(content=prompt)])
+                # return response.content
+                return self._process_openai_vlm(prompt)
 
             elif self.provider == "ollama":
                 return self._process_ollama(prompt, max_tokens)
@@ -133,7 +140,96 @@ class LLMPromptProcessor:
 
         except Exception as e:
             raise RuntimeError(f"Error processing prompt with {self.provider}: {str(e)}")
+        
+    def enforce_no_additional_properties(self, schema: Any) -> Any:
+        """
+        OpenAI Structured Outputs strict mode requires:
+        - every object schema must set additionalProperties: false
+        This recursively applies it.
+        """
+        if isinstance(schema, dict):
+            if schema.get("type") == "object":
+                schema["additionalProperties"] = False
+            for k, v in list(schema.items()):
+                if isinstance(v, (dict, list)):
+                    schema[k] = self.enforce_no_additional_properties(v)
+            return schema
+        if isinstance(schema, list):
+            return [self.enforce_no_additional_properties(x) for x in schema]
+        return schema
 
+    def _process_openai_vlm(self, prompt: str) -> Optional[str]:
+        """Process with OpenAI Vision."""
+
+        headers = {
+            "Authorization": f"Bearer {self.openai_api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        schema = LLMTableModel.model_json_schema()  # Pydantic v2
+        schema = self.enforce_no_additional_properties(schema)
+        payload = {
+            "model": self.model, 
+            "input": [{
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": prompt},
+                ],
+            }],
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "table_tsr",
+                    "strict": True,
+                    "schema": schema,
+                }
+            },
+        }
+
+        # payload = {
+        #     "model": "gpt-5",
+        #     "messages": [
+        #         {
+        #             "role": "user",
+        #             "content": [
+        #                 {"type": "input_text", "text": prompt},
+        #                 {
+        #                     "type": "input_image",
+        #                     "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+        #                 }
+        #             ]
+        #         }
+        #     ],
+        #     #"max_tokens": 6000,
+        #     #"temperature": 1  # Low temperature for structured output
+        # }
+
+        response = requests.post(
+            "https://api.openai.com/v1/responses",
+            headers=headers,
+            json=payload,
+            #timeout=120
+        )
+    
+        response.raise_for_status()
+
+        result = response.json()
+        # Robust extraction for /v1/responses
+        text_out = None
+        for item in result.get("output", []):
+            if item.get("type") == "message":
+                for c in item.get("content", []):
+                    if c.get("type") in ("output_text", "text"):
+                        text_out = c.get("text")
+                        break
+            if text_out:
+                break
+
+        if not text_out:
+            raise RuntimeError(f"No text output found. Full response: {result}")
+
+        return text_out
+    
     def _process_ollama(self, prompt: str, max_tokens: int) -> str:
         """Process prompt using Ollama local server."""
         try:

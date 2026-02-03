@@ -117,6 +117,8 @@ class ImageProjectionProcessor:
         """
         template = self.load_template(template_name)
         return template.render(**kwargs)
+
+    def encode_image_to_base64(self, image_path: str) -> str:
         """
         Encode image to base64 string.
 
@@ -203,6 +205,26 @@ class ImageProjectionProcessor:
         except Exception as e:
             print(f"VLM processing error: {e}")
             return None
+    def enforce_no_additional_properties(self, schema: dict) -> dict:
+        """
+        Recursively set additionalProperties=False on every object schema.
+        Required by Structured Outputs when strict=True.
+        """
+        if isinstance(schema, dict):
+            # If this node is an object schema, enforce additionalProperties: false
+            if schema.get("type") == "object":
+                schema["additionalProperties"] = False
+
+            # Recurse into common schema containers
+            for k, v in list(schema.items()):
+                if isinstance(v, (dict, list)):
+                    schema[k] = self.enforce_no_additional_properties(v)
+
+        elif isinstance(schema, list):
+            return [self.enforce_no_additional_properties(x) for x in schema]
+
+        return schema
+
 
     def _process_openai_vlm(self, image_path: str, prompt: str) -> Optional[str]:
         """Process with OpenAI Vision."""
@@ -212,35 +234,71 @@ class ImageProjectionProcessor:
             "Authorization": f"Bearer {self.openai_api_key}",
             "Content-Type": "application/json"
         }
-
-        data = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
-                        }
-                    ]
+        
+        schema = LLMTableModel.model_json_schema()  # Pydantic v2
+        schema = self.enforce_no_additional_properties(schema)
+        payload = {
+            "model": "gpt-5", 
+            "input": [{
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": prompt},
+                    {"type": "input_image", "image_url": f"data:image/png;base64,{base64_image}"},
+                ],
+            }],
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "table_tsr",
+                    "strict": True,
+                    "schema": schema,
                 }
-            ],
-            "max_tokens": 6000,
-            "temperature": 1  # Low temperature for structured output
+            },
         }
 
+        # payload = {
+        #     "model": "gpt-5",
+        #     "messages": [
+        #         {
+        #             "role": "user",
+        #             "content": [
+        #                 {"type": "input_text", "text": prompt},
+        #                 {
+        #                     "type": "input_image",
+        #                     "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+        #                 }
+        #             ]
+        #         }
+        #     ],
+        #     #"max_tokens": 6000,
+        #     #"temperature": 1  # Low temperature for structured output
+        # }
+
         response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
+            "https://api.openai.com/v1/responses",
             headers=headers,
-            json=data,
-            #timeout=60
+            json=payload,
+            #timeout=120
         )
+    
         response.raise_for_status()
 
         result = response.json()
-        return result["choices"][0]["message"]["content"]
+        # Robust extraction for /v1/responses
+        text_out = None
+        for item in result.get("output", []):
+            if item.get("type") == "message":
+                for c in item.get("content", []):
+                    if c.get("type") in ("output_text", "text"):
+                        text_out = c.get("text")
+                        break
+            if text_out:
+                break
+
+        if not text_out:
+            raise RuntimeError(f"No text output found. Full response: {result}")
+
+        return text_out
 
     def _process_claude_vlm(self, image_path: str, prompt: str) -> Optional[str]:
         """Process with Claude Vision."""
