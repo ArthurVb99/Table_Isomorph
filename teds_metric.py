@@ -131,17 +131,12 @@ class TEDSMetric:
         Returns:
             float: TEDS score (0-1, higher is better)
         """
-        if not pred_tokens and not gt_tokens:
-            return 1.0
-
-        if not pred_tokens or not gt_tokens:
-            return 0.0
-
         ted = self.tree_edit_distance(pred_tokens, gt_tokens)
         max_len = max(len(pred_tokens), len(gt_tokens))
 
         teds_score = 1.0 - (ted / max_len)
-        return max(0.0, min(1.0, teds_score))  # Clamp to [0, 1]
+        # return max(0.0, min(1.0, teds_score))  # Clamp to [0, 1]
+        return teds_score
 
     def extract_structure_tokens(self, html_dict: Dict) -> List[str]:
         """
@@ -179,7 +174,38 @@ class TEDSMetric:
                 matched.append((imgid, pred_data[imgid], gt_data[imgid]))
 
         return matched
+    
+    # match by filename and split (give that oone file name is augmented with _transposed string)
+    def match_by_filename_split(self, pred_data: Dict, gt_data: Dict) -> Optional[Tuple[int, Dict, Dict]]:
+        """
+        Match prediction and ground truth by imgid.
 
+        Args:
+            pred_data (Dict): Predicted data (imgid -> entry)
+            gt_data (Dict): Ground truth data (imgid -> entry)
+        Returns:
+            Optional[Tuple]: Matched entries with imgid
+        """
+        matched = []
+        for imgid in pred_data:
+            pred_entry = pred_data[imgid]
+            pred_filename = pred_entry.get('filename', '')
+            pred_filename = pred_filename.replace('_transposed', '')
+            pred_split = pred_entry.get('split', '')
+
+            for gt_imgid, gt_entry in gt_data.items():
+                gt_filename = gt_entry.get('filename', '')
+                gt_filename = gt_filename.replace("_transposed",'')
+
+                gt_split = gt_entry.get('split', '')
+
+                # Check if filenames match after removing '_transposed'
+                if (pred_filename== gt_filename) and (pred_split == gt_split):
+                    matched.append((imgid, pred_entry, gt_entry))
+                    break
+            
+        return matched
+    
     def compare_single_table(self, pred_entry: Dict, gt_entry: Dict) -> Dict:
         """
         Compare a single predicted table with ground truth.
@@ -302,7 +328,7 @@ class TEDSMetric:
         }
 
     def compare_jsonl_files(self, pred_jsonl: str, gt_jsonl: str, output_path: Optional[str] = None,
-                           max_workers: int = 4) -> Dict:
+                           max_workers: int = 4, matching_by_imgid: bool = True) -> Dict:
         """
         Compare two JSONL files and compute TEDS metrics.
 
@@ -321,12 +347,13 @@ class TEDSMetric:
         print(f"Loading predictions from: {pred_jsonl}")
         pred_data = self.load_jsonl(pred_jsonl)
 
-        # Match by imgid
-        print("\nMatching entries by imgid...")
-        matched_pairs = []
-        for imgid in pred_data:
-            if imgid in gt_data:
-                matched_pairs.append((imgid, pred_data[imgid], gt_data[imgid]))
+        # # Match by imgid
+        # print("\nMatching entries by imgid...")
+        if matching_by_imgid:
+            matched_pairs = self.match_by_imgid(pred_data, gt_data)
+        else:
+            print("\nMatching entries by filename and split...")
+            matched_pairs = self.match_by_filename_split(pred_data, gt_data)
 
         print(f"Matched {len(matched_pairs)} entries out of {len(pred_data)} predictions")
 
@@ -394,6 +421,7 @@ def main():
     gt_jsonl = os.getenv("PATH_GT_JSONL", "")
     output_path = os.getenv("PATH_OUTPUT_RESULTS", None)
     max_threads = int(os.getenv("MAX_THREADS", "4"))
+    matching_by_imgid = bool(int(os.getenv("MATCHING_BY_IMGID", "1")))
 
     if not pred_jsonl or not gt_jsonl:
         raise ValueError("PATH_PRED_JSONL and PATH_GT_JSONL environment variables must be set")
@@ -406,7 +434,8 @@ def main():
         pred_jsonl=pred_jsonl,
         gt_jsonl=gt_jsonl,
         output_path=output_path,
-        max_workers=max_threads
+        max_workers=max_threads,
+        matching_by_imgid=matching_by_imgid
     )
 
     # Print summary
