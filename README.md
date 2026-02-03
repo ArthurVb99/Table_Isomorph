@@ -1,6 +1,6 @@
-# Project Structure: Two-Track LLM & Image Editing System
+# Project Structure: Three-Track AI System
 
-This project implements a dual-track system for AI-powered text and image processing using **LangChain** and **template-based prompts** with **multi-provider LLM support**.
+This project implements a three-track system for AI-powered text processing, image editing, and table structure recognition using **LangChain** and **template-based prompts** with **multi-provider LLM support**.
 
 ## Quick Start
 
@@ -83,6 +83,11 @@ HUGGINGFACE_BASE_URL=https://api-inference.huggingface.co/models
 # ============================================================
 OPENROUTER_API_KEY=sk-or-...your_openrouter_api_key_here...
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+
+# ============================================================
+# CLAUDE PROVIDER
+# ============================================================
+ANTHROPIC_API_KEY=sk-ant-...your_anthropic_api_key_here...
 ```
 
 **Important:** Only set the API keys for providers you plan to use. All base URLs have defaults.
@@ -157,6 +162,19 @@ processor = LLMPromptProcessor(
     provider="openrouter",
     model="openai/gpt-3.5-turbo"
 )
+```
+
+### 5. **Claude** (Anthropic)
+
+```bash
+# Get API key from https://console.anthropic.com/
+
+# Configure in .env
+ANTHROPIC_API_KEY=sk-ant-...your_api_key...
+
+# Usage
+from track_2_image_editing.image_editor import ImagePromptEditor
+editor = ImagePromptEditor(vlm_provider="claude", model="claude-3-sonnet-20240229")
 ```
 
 ---
@@ -358,6 +376,95 @@ output_path = editor.process_with_template(
 
 ---
 
+## Track 3: Image Projection for Table Structure Recognition
+
+**Directory:** `track_3_image_projection/`
+
+Extracts table structures from images using Vision-Language Models (VLMs) and returns validated JSON representations.
+
+### Features
+
+- Table structure extraction from images
+- Multi-provider VLM support (OpenAI, Claude, OpenRouter, Ollama)
+- JSON validation using Pydantic models
+- Batch processing with multi-threading
+- Automatic data integrity checks
+
+### Module: `image_projection.py`
+
+**Basic Usage:**
+
+```python
+from track_3_image_projection.image_projection import ImageProjectionProcessor
+
+# Initialize processor
+processor = ImageProjectionProcessor(vlm_provider="openai", model="gpt-4-vision-preview")
+
+# Extract table structure from image
+model, error = processor.extract_table_structure(
+    image_path="table_image.png",
+    imgid=1,
+    split="train"
+)
+
+if model:
+    structure_json = model.model_dump()
+    print("Extracted structure:", structure_json)
+else:
+    print("Error:", error)
+```
+
+**Batch Processing:**
+
+```python
+# Process multiple images
+image_paths = ["table1.png", "table2.png", "table3.png"]
+results = processor.batch_process_images(
+    image_paths=image_paths,
+    output_jsonl_path="extracted_structures.jsonl"
+)
+
+print(f"Processed {results['statistics']['successful']} out of {results['statistics']['processed']} images")
+```
+
+### Validation Integration
+
+Track 3 uses the same validators as Track 1:
+
+```python
+from track_3_image_projection.image_projection import ImageProjectionProcessor
+from track_1_llm_prompt.validators import validate_llm_output, compare_cell_count
+
+processor = ImageProjectionProcessor()
+model, error = processor.extract_table_structure("table.png")
+
+if model:
+    # Additional validation if needed
+    validated_model, validation_error = validate_llm_output(model.model_dump())
+    if validated_model:
+        print("Structure validated successfully")
+    else:
+        print("Validation error:", validation_error)
+```
+
+### Batch Script
+
+Use the provided batch script for large-scale processing:
+
+```bash
+# Set environment variables
+set PATH_INPUT_IMAGES=path/to/image/directory
+set PATH_OUTPUT_JSONL=extracted_structures.jsonl
+set VLM_PROVIDER=openai
+set MODEL=gpt-4-vision-preview
+set MAX_THREADS=4
+
+# Run batch processing
+python batch_structure_extraction.py
+```
+
+---
+
 ## Supported Image Operations
 
 | Operation | Method | Effect |
@@ -393,6 +500,8 @@ output_path = editor.process_with_template(
 |---|---|
 | basic_edits.txt | Simple image operations |
 | enhancement.txt | Brightness/contrast/saturation adjustments |
+| table_transpose.txt | Table transposition for image editing |
+| table_structure_extraction.txt | Table structure recognition and JSON extraction |
 
 ---
 
@@ -404,10 +513,14 @@ TableStructureRecognitionProject/
 │   ├── __init__.py
 │   ├── llm_processor.py          # Multi-provider LLM interface
 │   ├── file_reader.py             # JSON/HTML/CSV reading
-│   └── data_transformer.py        # Row-column permutations
+│   ├── data_transformer.py        # Row-column permutations
+│   └── validators.py              # Pydantic models for validation
 ├── track_2_image_editing/
 │   ├── __init__.py
-│   └── image_editor.py            # Image editing
+│   └── image_editor.py            # Image editing with prompts
+├── track_3_image_projection/
+│   ├── __init__.py
+│   └── image_projection.py        # Table structure extraction from images
 ├── templates/
 │   ├── llm_prompts/               # LLM prompt templates
 │   │   ├── generic_question.txt
@@ -418,8 +531,12 @@ TableStructureRecognitionProject/
 │   │   └── sample_generation.txt
 │   └── image_prompts/             # Image editing templates
 │       ├── basic_edits.txt
-│       └── enhancement.txt
+│       ├── enhancement.txt
+│       ├── table_transpose.txt
+│       └── table_structure_extraction.txt
 ├── output_images/                 # Generated output images
+├── batch_image_processor.py       # Batch image transposition
+├── batch_structure_extraction.py  # Batch table structure extraction
 ├── examples.py                    # Comprehensive examples
 ├── requirements.txt
 ├── .env                           # Environment variables (create this)

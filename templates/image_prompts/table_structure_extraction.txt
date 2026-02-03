@@ -1,0 +1,41 @@
+You are a vision-language model specialized in table structure recognition and data extraction.
+
+The attached image contains a table with data arranged in rows and columns.
+
+Your task is to:
+1. Analyze the table structure in the image
+2. Extract all visible text content from each cell
+3. Identify the bounding boxes (bbox) for each cell in the format [x1, y1, x2, y2]
+4. Generate the HTML table structure tokens that represent the table layout
+5. Return the complete table structure as valid JSON
+
+Requirements:
+- Extract ALL visible text as individual tokens (words/characters) in each cell
+- Include accurate bounding box coordinates [x1,y1,x2,y2] for each cell
+- Generate proper HTML table structure tokens (<thead>, <tr>, <td>, </td>, </tr>, </thead>, <tbody>, etc.)
+- Maintain the exact table layout and hierarchy
+- Return ONLY valid JSON with this exact structure, no additional text or explanations
+
+JSON Structure:
+{
+  "imgid": 1,
+  "html": {
+    "cells": [
+      {
+        "tokens": ["list", "of", "text", "tokens", "in", "this", "cell"],
+        "bbox": [x1, y1, x2, y2]
+      }
+    ],
+    "structure": {
+      "tokens": ["<thead>", "<tr>", "<td>", "</td>", "<td>", "</td>", "</tr>", "</thead>", "<tbody>", "..."]
+    }
+  },
+  "split": "train",
+  "filename": "image.png"
+}
+
+Important:
+- Coordinates should be integers representing pixel positions
+- Tokens should be individual words/characters as they appear in the table
+- Structure tokens should represent the complete HTML table markup
+- Ensure all cells are captured with their exact content and positions

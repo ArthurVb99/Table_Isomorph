@@ -655,6 +655,17 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Skipping VLM example: {e}")
 
+    # Track 3 examples
+    try:
+        example_track3_table_structure_extraction()
+    except Exception as e:
+        print(f"Skipping Track 3 table extraction example: {e}")
+
+    try:
+        example_track3_batch_processing()
+    except Exception as e:
+        print(f"Skipping Track 3 batch processing example: {e}")
+
     # Uncomment to test other providers:
     # example_ollama_local()
     # example_huggingface()
@@ -664,3 +675,105 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("Examples completed!")
     print("=" * 60)
+
+
+# Track 3: Image Projection Examples
+from track_3_image_projection.image_projection import ImageProjectionProcessor
+from track_1_llm_prompt.validators import validate_llm_output
+
+
+def example_track3_table_structure_extraction():
+    """Example: Extract table structure from images using Track 3."""
+    print("\n" + "=" * 60)
+    print("TRACK 3 EXAMPLE: Table Structure Extraction from Images")
+    print("=" * 60)
+
+    try:
+        # Initialize processor
+        processor = ImageProjectionProcessor(
+            vlm_provider="openai",
+            model="gpt-4-vision-preview"
+        )
+        print("✓ Initialized Image Projection Processor")
+
+        # Example with a table image (replace with actual path)
+        test_image = "path/to/table/image.png"  # Replace with real image path
+
+        if os.path.exists(test_image):
+            print(f"Processing image: {test_image}")
+
+            # Extract table structure
+            model, error = processor.extract_table_structure(
+                image_path=test_image,
+                imgid=1,
+                split="train"
+            )
+
+            if model:
+                structure = model.model_dump()
+                print("✓ Successfully extracted table structure:")
+                print(json.dumps(structure, indent=2))
+
+                # Validate the extracted structure
+                validated_model, validation_error = validate_llm_output(structure)
+                if validated_model:
+                    print("✓ Structure validation passed")
+                else:
+                    print(f"✗ Structure validation failed: {validation_error}")
+
+            else:
+                print(f"✗ Failed to extract structure: {error}")
+        else:
+            print(f"⚠ Test image not found: {test_image}")
+            print("  Please provide a valid table image path to test Track 3")
+
+    except Exception as e:
+        print(f"✗ Track 3 example failed: {e}")
+
+
+def example_track3_batch_processing():
+    """Example: Batch process multiple images for table structure extraction."""
+    print("\n" + "=" * 60)
+    print("TRACK 3 EXAMPLE: Batch Table Structure Extraction")
+    print("=" * 60)
+
+    try:
+        # Initialize processor
+        processor = ImageProjectionProcessor(
+            vlm_provider="openai",
+            model="gpt-4-vision-preview"
+        )
+
+        # Example image paths (replace with real paths)
+        image_paths = [
+            "path/to/table1.png",
+            "path/to/table2.png",
+            # Add more image paths as needed
+        ]
+
+        # Filter to existing images
+        existing_images = [img for img in image_paths if os.path.exists(img)]
+
+        if existing_images:
+            print(f"Processing {len(existing_images)} images...")
+
+            # Batch process
+            results = processor.batch_process_images(
+                image_paths=existing_images,
+                output_jsonl_path="batch_extracted_structures.jsonl"
+            )
+
+            stats = results["statistics"]
+            print("Batch processing results:")
+            print(f"  Total processed: {stats['processed']}")
+            print(f"  Successful: {stats['successful']}")
+            print(f"  Failed: {stats['failed']}")
+            print(".1f")
+            if stats['successful'] > 0:
+                print("✓ Results saved to: batch_extracted_structures.jsonl")
+        else:
+            print("⚠ No valid image paths found for batch processing")
+            print("  Please add valid table image paths to test batch processing")
+
+    except Exception as e:
+        print(f"✗ Batch processing example failed: {e}")
