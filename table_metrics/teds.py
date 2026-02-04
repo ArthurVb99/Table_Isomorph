@@ -96,7 +96,7 @@ def teds_score(
         n_nodes = max(n_nodes_pred, n_nodes_true)
 
         if n_nodes:
-            return 1.0 - (float(distance) / n_nodes)
+            return max(1.0 - (float(distance) / n_nodes),0.0)
         else:
             return 1.0
 

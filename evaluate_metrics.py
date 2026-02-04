@@ -42,6 +42,7 @@ def json_to_html(data: Dict) -> str:
     cell_contents = []
     for cell in cells:
         tokens = cell.get("tokens", [])
+        # Join tokens with space and strip
         content = " ".join(tokens).strip()
         cell_contents.append(content)
     
@@ -54,10 +55,13 @@ def json_to_html(data: Dict) -> str:
             # Add opening tag
             html_parts.append(token)
             
-            # Add cell content if available
+            # ALWAYS add cell content (even if empty) and increment index
             if cell_index < len(cell_contents):
                 html_parts.append(cell_contents[cell_index])
-                cell_index += 1
+            else:
+                html_parts.append("")  # Empty cell fallback
+            
+            cell_index += 1  # Always increment
         else:
             # Add structure token as-is
             html_parts.append(token)
@@ -213,7 +217,7 @@ class TableMetricsEvaluator:
             # Calculate GriTS metrics
             grits_top = grits_top_score(gt_html, pred_html)
             grits_con = grits_con_score(gt_html, pred_html)
-            grits_loc = grits_loc_score(gt_html, pred_html)
+            grits_loc = 0.00
 
             result['teds'] = round(teds_full, 4)
             result['teds_struct'] = round(teds_struct, 4)
@@ -335,7 +339,7 @@ class TableMetricsEvaluator:
         gt_jsonl: str,
         output_path: Optional[str] = None,
         max_workers: int = 4,
-        match_by: str = "imgid"
+        matching_by_imgid: bool = True
     ) -> Dict:
         """
         Evaluate predictions against ground truth from JSONL files.
@@ -345,7 +349,7 @@ class TableMetricsEvaluator:
             gt_jsonl (str): Path to ground truth JSONL file
             output_path (Optional[str]): Path to save detailed results
             max_workers (int): Number of parallel threads
-            match_by (str): Matching strategy - "imgid" or "filename"
+            matching_by_imgid (bool): Whether to match by imgid (True) or filename (False)
 
         Returns:
             Dict: Aggregated metrics and results
@@ -357,15 +361,13 @@ class TableMetricsEvaluator:
         pred_data = self.load_jsonl(pred_jsonl)
 
         # Match by strategy
-        if match_by == "imgid":
+        if matching_by_imgid:
             print("\nMatching entries by imgid...")
             matched_pairs = self.match_by_imgid(pred_data, gt_data)
-        elif match_by == "filename":
+        else:
             print("\nMatching entries by filename and split...")
             matched_pairs = self.match_by_filename(pred_data, gt_data)
-        else:
-            raise ValueError(f"Invalid match_by strategy: {match_by}. Use 'imgid' or 'filename'")
-
+            
         print(f"Matched {len(matched_pairs)} entries out of {len(pred_data)} predictions")
 
         # Process evaluations in parallel
@@ -437,7 +439,7 @@ def main():
     gt_jsonl = os.getenv("PATH_GT_JSONL", "")
     output_path = os.getenv("PATH_OUTPUT_RESULTS", None)
     max_threads = int(os.getenv("MAX_THREADS", "4"))
-    match_by = os.getenv("MATCH_BY", "imgid")  # "imgid" or "filename"
+    matching_by_imgid = bool(int(os.getenv("MATCHING_BY_IMGID", "0")))  
     structure_only = bool(int(os.getenv("STRUCTURE_ONLY", "0")))
 
     if not pred_jsonl or not gt_jsonl:
@@ -455,7 +457,7 @@ def main():
         gt_jsonl=gt_jsonl,
         output_path=output_path,
         max_workers=max_threads,
-        match_by=match_by
+        matching_by_imgid=matching_by_imgid
     )
 
     # Print summary
