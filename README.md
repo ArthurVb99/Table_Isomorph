@@ -1,11 +1,14 @@
-# Project Structure: Three-Track AI System
+# Measuring Cross-Modal Semantic Consistency between Symbolic and Visual Table Reasoning
+This work implements a three-track AI system designed to measure the degree ($\epsilon$) of **cross-modal semantic consistency** in table reasoning across both visual and symbolic modalities. By using LangChain and template-based prompts with multi-provider LLM support, the work introduces **prompt-as-instruction isomorphism (PII)** as the main evalluation framework.
 
-This project implements a three-track system for AI-powered text processing, image editing, and table structure recognition using **LangChain** and **template-based prompts** with **multi-provider LLM support**.
-
-## Quick Start
+### Core Functionality and Methodology
+The system operates through a closed-loop framework to measure cross-modal alignment:
+- **Symbolic Track**: A Large Language Model (LLM) applies a structural transformation to a table in the symbolic domain (e.g., JSON, HTML or Token-Oriented Object). 
+- **Visual Track**: A Vision-Language Model (VLM) performs a visually equivalent image-to-image edit on the source table image. 
+- **TSR Integration**: The project uses Table Structure Recognition (TSR) to re-project edited images back into the symbolic domain. 
+- **Evaluation**: Direct cross-modal structural comparisons are conducted using metrics such as TEDS and GriTS.
 
 ### Prerequisites
-
 - Python 3.8 or higher
 - pip or conda
 - At least one LLM provider configured (see below)
@@ -110,322 +113,17 @@ from track_1_llm_prompt.llm_processor import LLMPromptProcessor
 processor = LLMPromptProcessor(provider="openai", model="gpt-3.5-turbo")
 ```
 
-### 2. **Ollama** (Local Server - Free, Private)
-
-```bash
-# Install Ollama: https://ollama.ai
-
-# Start Ollama server (default: http://localhost:11434)
-ollama serve
-
-# Pull a model
-ollama pull mistral  # or llama2, neural-chat, etc.
-
-# Configure in .env (optional, uses default if not set)
-OLLAMA_BASE_URL=http://localhost:11434
-# For remote server:
-# OLLAMA_BASE_URL=http://134.184.22.126:11434
-
-# Usage in Python
-processor = LLMPromptProcessor(provider="ollama", model="mistral")
-```
-
-### 3. **HuggingFace** (Cloud API)
-
-```bash
-# Get API key from https://huggingface.co/settings/tokens
-
-# Configure in .env
-HUGGINGFACE_API_KEY=hf_...your_api_key...
-# Optional: custom base URL
-# HUGGINGFACE_BASE_URL=https://api-inference.huggingface.co/models
-
-# Usage
-processor = LLMPromptProcessor(
-    provider="huggingface",
-    model="meta-llama/Llama-2-7b-chat-hf"
-)
-```
-
-### 4. **OpenRouter** (Multi-model aggregator)
-
-```bash
-# Get API key from https://openrouter.ai
-
-# Configure in .env
-OPENROUTER_API_KEY=sk-or-...your_api_key...
-# Optional: custom base URL
-# OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-
-# Usage
-processor = LLMPromptProcessor(
-    provider="openrouter",
-    model="openai/gpt-3.5-turbo"
-)
-```
-
-### 5. **Claude** (Anthropic)
-
-```bash
-# Get API key from https://console.anthropic.com/
-
-# Configure in .env
-ANTHROPIC_API_KEY=sk-ant-...your_api_key...
-
-# Usage
-from track_2_image_editing.image_editor import ImagePromptEditor
-editor = ImagePromptEditor(vlm_provider="claude", model="claude-3-sonnet-20240229")
-```
-
----
-
 ## Track 1: LLM Prompt Processor with Multi-Provider Support
 
 **Directory:** `track_1_llm_prompt/`
 
 Handles text-based prompt interactions with multiple LLM providers.
 
-### Modules
-
-- **llm_processor.py**: Multi-provider LLM interface
-- **file_reader.py**: Read JSON, HTML, CSV files
-- **data_transformer.py**: Row-column permutations and transformations
-
-### Features
-
-- Multi-model support (OpenAI, Ollama, HuggingFace, OpenRouter)
-- Template-based prompt generation
-- Batch prompt processing
-- JSON/HTML/CSV file reading
-- Row-column permutation and data transformation
-
-### Basic LLM Usage
-
-```python
-from track_1_llm_prompt.llm_processor import LLMPromptProcessor
-
-# Initialize with different providers
-processor = LLMPromptProcessor(provider="openai", model="gpt-3.5-turbo")
-# or
-processor = LLMPromptProcessor(provider="ollama", model="mistral")
-
-# Direct prompt
-response = processor.process_prompt("What is AI?")
-
-# Template-based
-response = processor.process_template(
-    "generic_question.txt",
-    question="Explain quantum computing"
-)
-
-# Batch processing
-responses = processor.process_batch_prompts([
-    "What is AI?",
-    "What is ML?",
-    "What is DL?"
-])
-
-# List providers and templates
-print(LLMPromptProcessor.get_available_providers())
-print(processor.list_available_templates())
-```
-
----
-
-## Data Transformation & Table Permutations
-
-### File Reading
-
-```python
-from track_1_llm_prompt.file_reader import DataFileReader
-from track_1_llm_prompt.data_transformer import DataTransformer
-
-# Read files (auto-detect format)
-data = DataFileReader.read_file("data.json")
-data = DataFileReader.read_html("table.html", table_index=0)
-data = DataFileReader.read_csv("data.csv")
-
-# Read all tables from HTML
-all_tables = DataFileReader.read_html_all_tables("multi_table.html")
-```
-
-### Row-Column Permutations
-
-```python
-# Create transformer
-transformer = DataTransformer(data)
-
-# Swap rows (1-indexed for user convenience)
-transformer.swap_rows_by_position(1, 2)  # Swap row 1 with row 2
-
-# Swap columns
-transformer.swap_columns("name", "age")  # Swap by column name
-transformer.swap_columns_by_position(1, 2)  # Swap by position
-
-# Apply multiple permutations
-permutations = [
-    {'type': 'row', 'first': 1, 'second': 2},
-    {'type': 'column', 'first': 'name', 'second': 'age'},
-    {'type': 'both', 
-     'rows': [(0, 1), (2, 3)],
-     'columns': [('col_a', 'col_b')]}
-]
-transformer.apply_row_column_permutations(permutations)
-
-# Advanced operations
-transformer.rotate_rows(2)  # Rotate rows down by 2
-transformer.rotate_columns(1)  # Rotate columns
-transformer.shuffle_rows(seed=42)  # Shuffle rows
-transformer.shuffle_columns(seed=42)  # Shuffle columns
-
-# Export
-json_str = transformer.to_json()
-dict_data = transformer.to_dict()
-df = transformer.to_dataframe()
-transformer.display()  # Print formatted table
-```
-
-### Complete Example
-
-```python
-from track_1_llm_prompt.file_reader import DataFileReader
-from track_1_llm_prompt.data_transformer import DataTransformer
-from track_1_llm_prompt.llm_processor import LLMPromptProcessor
-import json
-
-# 1. Read file
-data = DataFileReader.read_file("employees.json")
-
-# 2. Transform data
-transformer = DataTransformer(data)
-transformer.swap_rows_by_position(1, 2)
-transformer.swap_columns("name", "dept")
-
-# 3. Analyze with LLM
-processor = LLMPromptProcessor(provider="openai")
-response = processor.process_template(
-    "table_permutation.txt",
-    data=json.dumps(transformer.to_dict()),
-    operation_type="both",
-    num_permutations=2,
-    constraints="Maintain employee hierarchy"
-)
-
-print(response)
-```
-
----
-
 ## Track 2: Image Prompt Editor with Templates
 
 **Directory:** `track_2_image_editing/`
 
 Processes images based on text prompts or templates and outputs edited images.
-
-### Features
-
-- Prompt-based image editing
-- Template-based editing instructions
-- Multiple image operations
-- Automatic output management
-
-### Module: `image_editor.py`
-
-**Basic Usage:**
-
-```python
-from track_2_image_editing.image_editor import ImagePromptEditor
-
-# Initialize editor
-editor = ImagePromptEditor(output_dir="output_images")
-
-# Edit with text prompt
-output_path = editor.process_with_prompt(
-    image_path="input.jpg",
-    prompt="Brighten the image and increase contrast",
-    output_filename="brightened.png"
-)
-print(f"Edited image saved to: {output_path}")
-```
-
-**Template-Based Editing:**
-
-```python
-# List available templates
-templates = editor.list_available_templates()
-
-# Use basic edits template
-output_path = editor.process_with_template(
-    image_path="photo.jpg",
-    template_name="basic_edits.txt",
-    operations="sharpen, brighten",
-    output_filename="enhanced.png"
-)
-
-# Use enhancement template with specific parameters
-output_path = editor.process_with_template(
-    image_path="landscape.jpg",
-    template_name="enhancement.txt",
-    brightness=1.2,
-    contrast=1.3,
-    saturation=1.5,
-    apply="all",
-    output_filename="landscape_enhanced.png"
-)
-```
-
----
-
-## Track 3: Image Projection for Table Structure Recognition
-
-**Directory:** `track_3_image_projection/`
-
-Extracts table structures from images using Vision-Language Models (VLMs) and returns validated JSON representations.
-
-### Features
-
-- Table structure extraction from images
-- Multi-provider VLM support (OpenAI, Claude, OpenRouter, Ollama)
-- JSON validation using Pydantic models
-- Batch processing with multi-threading
-- Automatic data integrity checks
-
-### Module: `image_projection.py`
-
-**Basic Usage:**
-
-```python
-from track_3_image_projection.image_projection import ImageProjectionProcessor
-
-# Initialize processor
-processor = ImageProjectionProcessor(vlm_provider="openai", model="gpt-4-vision-preview")
-
-# Extract table structure from image
-model, error = processor.extract_table_structure(
-    image_path="table_image.png",
-    imgid=1,
-    split="train"
-)
-
-if model:
-    structure_json = model.model_dump()
-    print("Extracted structure:", structure_json)
-else:
-    print("Error:", error)
-```
-
-**Batch Processing:**
-
-```python
-# Process multiple images
-image_paths = ["table1.png", "table2.png", "table3.png"]
-results = processor.batch_process_images(
-    image_paths=image_paths,
-    output_jsonl_path="extracted_structures.jsonl"
-)
-
-print(f"Processed {results['statistics']['successful']} out of {results['statistics']['processed']} images")
-```
 
 ### Validation Integration
 
@@ -456,28 +154,12 @@ Use the provided batch script for large-scale processing:
 set PATH_INPUT_IMAGES=path/to/image/directory
 set PATH_OUTPUT_JSONL=extracted_structures.jsonl
 set VLM_PROVIDER=openai
-set MODEL=gpt-4-vision-preview
+set MODEL=gpt5
 set MAX_THREADS=4
 
 # Run batch processing
 python batch_structure_extraction.py
 ```
-
----
-
-## Supported Image Operations
-
-| Operation | Method | Effect |
-|---|---|---|
-| Brighten | `adjust_brightness(factor > 1.0)` | Increase brightness |
-| Darken | `adjust_brightness(factor < 1.0)` | Decrease brightness |
-| Sharpen | `apply_sharpen(factor > 1.0)` | Enhance details |
-| Blur | `apply_blur(radius)` | Apply gaussian blur |
-| Grayscale | `apply_grayscale()` | Convert to black & white |
-| Contrast | `adjust_contrast(factor > 1.0)` | Increase contrast |
-| Saturate | `apply_saturation(factor > 1.0)` | Increase color saturation |
-| Desaturate | `apply_saturation(factor < 1.0)` | Decrease color saturation |
-| Resize | `resize_image(width, height)` | Scale image |
 
 ---
 
@@ -487,234 +169,44 @@ python batch_structure_extraction.py
 
 | Template | Purpose |
 |---|---|
-| generic_question.txt | General Q&A |
-| text_analysis.txt | Analyze and extract information |
-| code_help.txt | Code debugging and help |
 | table_permutation.txt | Analyze tables and generate permutations |
-| data_analysis.txt | Analyze file content and structure |
 | sample_generation.txt | Generate sample data with transformations |
 
 ### Image Prompts (`templates/image_prompts/`)
 
 | Template | Purpose |
 |---|---|
-| basic_edits.txt | Simple image operations |
-| enhancement.txt | Brightness/contrast/saturation adjustments |
 | table_transpose.txt | Table transposition for image editing |
 | table_structure_extraction.txt | Table structure recognition and JSON extraction |
 
 ---
 
-## Project Structure
+## Evaluation: Measuring Structural Consistency
+Once you have processed the dataset through the Symbolic ($L_f$) and Visual ($V_f$) tracks, use the provided evaluation script to calculate the TEDS (Table Edit Distance Similarity) and GriTS (Grid Table Similarity) scores.
 
-```
-TableStructureRecognitionProject/
-├── track_1_llm_prompt/
-│   ├── __init__.py
-│   ├── llm_processor.py          # Multi-provider LLM interface
-│   ├── file_reader.py             # JSON/HTML/CSV reading
-│   ├── data_transformer.py        # Row-column permutations
-│   └── validators.py              # Pydantic models for validation
-├── track_2_image_editing/
-│   ├── __init__.py
-│   └── image_editor.py            # Image editing with prompts
-├── track_3_image_projection/
-│   ├── __init__.py
-│   └── image_projection.py        # Table structure extraction from images
-├── templates/
-│   ├── llm_prompts/               # LLM prompt templates
-│   │   ├── generic_question.txt
-│   │   ├── text_analysis.txt
-│   │   ├── code_help.txt
-│   │   ├── table_permutation.txt
-│   │   ├── data_analysis.txt
-│   │   └── sample_generation.txt
-│   └── image_prompts/             # Image editing templates
-│       ├── basic_edits.txt
-│       ├── enhancement.txt
-│       ├── table_transpose.txt
-│       └── table_structure_extraction.txt
-├── output_images/                 # Generated output images
-├── batch_image_processor.py       # Batch image transposition
-├── batch_structure_extraction.py  # Batch table structure extraction
-├── examples.py                    # Comprehensive examples
-├── requirements.txt
-├── .env                           # Environment variables (create this)
-├── README.md
-└── .github/
-    └── copilot-instructions.md
+1. Download the TableNetTab dataset and place it in the `data/` directory. Ensure the structure follows the required format:
+
+```plaintext
+data/
+└── TableNetTab/
+    ├── images/          # Source table images
+    ├── ground_truth/    # Corresponding JSON/TOO files
+    └── predictions/     # Outputs from VLM (Visual) and LLM (Symbolic)
 ```
 
----
+2. Run the Evaluation Script
 
-## Dependencies
+The `evaluate_metrics.py` script compares the ground truth with the model outputs to quantify the Semantic Consistency Gap.
 
-- **langchain**: Multi-model LLM framework
-- **langchain-openai**: OpenAI integration
-- **openai**: OpenAI API client
-- **requests**: HTTP client (for Ollama, HuggingFace, OpenRouter)
-- **jinja2**: Template rendering
-- **pillow**: Image processing
-- **opencv-python**: Computer vision
-- **python-dotenv**: Environment variables
-- **numpy**: Numerical operations
-- **pandas**: Data manipulation
-- **beautifulsoup4**: HTML parsing
-- **ollama**: Ollama client
-- **huggingface-hub**: HuggingFace integration
-
----
-
-## Usage Examples
-
-### Example 1: OpenAI with Table Transformation
-
-```python
-from track_1_llm_prompt.llm_processor import LLMPromptProcessor
-from track_1_llm_prompt.file_reader import DataFileReader
-from track_1_llm_prompt.data_transformer import DataTransformer
-
-processor = LLMPromptProcessor(provider="openai", model="gpt-3.5-turbo")
-data = DataFileReader.read_json("data.json")
-transformer = DataTransformer(data)
-transformer.swap_rows_by_position(1, 2)
-print(transformer.to_json())
-```
-
-### Example 2: Local Ollama
-
-```python
-processor = LLMPromptProcessor(
-    provider="ollama",
-    model="mistral",
-    base_url="http://localhost:11434"
-)
-response = processor.process_prompt("What is data transformation?")
-print(response)
-```
-
-### Example 3: HuggingFace
-
-```python
-processor = LLMPromptProcessor(
-    provider="huggingface",
-    model="meta-llama/Llama-2-7b-chat-hf"
-)
-response = processor.process_template(
-    "generic_question.txt",
-    question="Explain permutations"
-)
-```
-
-### Example 4: Read HTML and Transform
-
-```python
-data = DataFileReader.read_html("employees.html")
-transformer = DataTransformer(data)
-transformer.shuffle_rows(seed=42)
-print(transformer.to_json())
-```
-
-See `examples.py` for more complete examples.
-
----
-
-## Troubleshooting
-
-### ImportError: No module named 'langchain'
+Run the evaluation using the following command:
 
 ```bash
-pip install -r requirements.txt
+python evaluate_metrics.py 
 ```
 
-### Ollama: Connection refused
+3. Understanding the Output
 
-```bash
-# Make sure Ollama is running
-ollama serve
-
-# In another terminal, pull a model
-ollama pull mistral
-```
-
-### API Key errors
-
-1. Create `.env` file in project root
-2. Add your API key: `OPENAI_API_KEY=your_key`
-3. Never commit `.env` to git
-
-### FileNotFoundError for templates
-
-- Ensure `templates/llm_prompts/` and `templates/image_prompts/` exist
-- Check template filename matches exactly
-
-### HTML table not found
-
-- Verify HTML file contains `<table>` element
-- Try `read_html_all_tables()` to debug
-
----
-
-## Advanced Features
-
-### Custom LLM Models
-
-```python
-# Use different models with any provider
-processor = LLMPromptProcessor(
-    provider="openai",
-    model="gpt-4",
-    temperature=0.3  # More deterministic
-)
-```
-
-### Create Custom Templates
-
-1. Create `.txt` file in appropriate template directory
-2. Use Jinja2 syntax: `{{ variable_name }}`
-3. Use with `process_template()` method
-
-### Chained Permutations
-
-```python
-transformer = DataTransformer(data)
-transformer.swap_rows_by_position(1, 2) \
-           .swap_columns("col_a", "col_b") \
-           .rotate_rows(1) \
-           .shuffle_columns(seed=42)
-print(transformer.to_json())
-```
-
----
-
-## Future Enhancements
-
-- [ ] Vision model integration (GPT-4V)
-- [ ] Support for more local models (LLaMA, Mistral, etc.)
-- [ ] Batch file processing pipeline
-- [ ] REST API server
-- [ ] Web UI dashboard
-- [ ] Advanced table analysis with NLP
-- [ ] Video processing support
-- [ ] Multi-provider load balancing
-
----
-
-## Notes
-
-- **Never commit `.env`** to version control
-- Both tracks operate independently
-- Extend base classes for custom functionality
-- Output images auto-saved to configured directory
-- LangChain provides unified interface across models
-- Local Ollama offers privacy without internet dependency
-
----
-
-## Getting Help
-
-1. Check `examples.py` for working code samples
-2. Verify environment variables are set correctly
-3. Ensure external services (Ollama, APIs) are running
-4. Check template files exist in correct directories
-5. Review error messages for specific provider issues
+The script will output a summary of results, including:
+- **$\epsilon$ (Equivalence Coefficient)**: The degree of alignment between the Visual and Symbolic paths.
+- **TEDS Score**: Measures HTML/TOO structural similarity via tree edit distance.
+- **GriTS Score**: Evaluates the table as a 2D matrix, identifying precision and recall at the cell level.
