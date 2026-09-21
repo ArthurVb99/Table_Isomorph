@@ -1,10 +1,9 @@
-#CODE ARTHUR
 import os
 from pathlib import Path
-import sys
 
-from batch_structure_extration import process_images_to_jsonl, find_images_in_directory
-from image_editor import ImageProjectionProcessor
+from batch_image_processor import MAX_IMG
+from batch_structure_extraction import find_images_in_directory, process_images_to_jsonl
+from track_4_image_edit_and_project.image_editor_projection import ImagePromptEditorProjection
 
 def main():
     """Main function - configure paths here"""
@@ -17,12 +16,14 @@ def main():
     max_threads = int(os.getenv("MAX_THREADS", "4"))
 
     # format the output file witht vlm provider and model
-    output_jsonl = Path(input_dir).parent / output_jsonl.replace('.jsonl', f'#{vlm_provider}_{model}#.jsonl')
-    
     if not input_dir:
         print("Error: PATH_INPUT_IMAGES environment variable not set")
         print("Set it to the directory containing images or a single image path")
         return
+
+    output_jsonl = Path(input_dir).parent / output_jsonl.replace(
+        '.jsonl', f'#{vlm_provider}_{model}#.jsonl'
+    )
 
     # Check if input is a single file or directory
     input_path = Path(input_dir)
@@ -38,11 +39,17 @@ def main():
         print(f"No images found in {input_dir}")
         return
 
+    max_images = int(MAX_IMG)
+    image_paths = image_paths[:max_images]
+
     print(f"Found {len(image_paths)} images to process")
 
     # Initialize processor
     try:
-        processor = ImageProjectionProcessor(vlm_provider=vlm_provider, model=model)
+        processor = ImagePromptEditorProjection(
+            vlm_provider=vlm_provider,
+            model=model,
+        )
         print(f"✓ Initialized {vlm_provider} VLM provider with model {model}")
     except Exception as e:
         print(f"Error initializing VLM provider: {e}")

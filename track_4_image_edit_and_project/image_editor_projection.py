@@ -79,6 +79,15 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 		except Exception as error:
 			return None, f"Processing error: {error}"
 
+	def extract_table_structure(
+		self,
+		image_path: str,
+		imgid: int = 1,
+		split: str = "train",
+	) -> Tuple[Optional[LLMTableModel], Optional[str]]:
+		"""Use the combined edit-and-project flow for batch extractor compatibility."""
+		return self.process_edit_and_project(image_path, imgid, split)
+
 	def project_edited_table(self, image_path: str, imgid: int = 1, split: str = "train") -> Optional[dict]:
 		"""Return the edited table projection as a JSON-serializable dictionary."""
 		model, error = self.process_edit_and_project(image_path, imgid, split)
