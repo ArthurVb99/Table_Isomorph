@@ -15,7 +15,7 @@ from track_1_llm_prompt.llm_processor import LLMPromptProcessor
 from track_1_llm_prompt.file_reader import DataFileReader
 from track_1_llm_prompt.data_transformer import DataTransformer
 from track_2_image_editing.image_editor import ImagePromptEditor
-
+from track_4_image_edit_and_project.image_editor_projection import ImagePromptEditorProjection
 
 class TableStructureRecognitionApp:
     """Main application class for table structure recognition."""
@@ -32,7 +32,7 @@ class TableStructureRecognitionApp:
             "llm_provider": os.getenv("DEFAULT_LLM_PROVIDER", "openai"),
             "llm_model": os.getenv("DEFAULT_LLM_MODEL", "gpt-3.5-turbo"),
             "vlm_provider": os.getenv("DEFAULT_VLM_PROVIDER", "openai"),
-            "output_dir": "output",
+            "output_dir": "/data/brussel/vo/000/bvo00018/vsc11306/cross-modal_experiments/results",
             "sample_data_file": "sample_data.json"
         }
 

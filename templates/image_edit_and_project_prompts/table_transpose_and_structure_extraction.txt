@@ -14,7 +14,7 @@ Requirements:
 - Extract ALL visible text as individual tokens (words/characters) in each cell
 - Include accurate bounding box coordinates [x1,y1,x2,y2] for each cell
 - Generate proper HTML table structure tokens (<thead>, <tr>, <td>, </td>, </tr>, </thead>, <tbody>, etc.)
-- Target size (transposed): {target_w}x{target_h} (w x h).
+- Target size (transposed): {{ target_w }}x{{ target_h }} (w x h).
 - Transpose the table while preserving its exact structure and hierarchy 
 - Return ONLY valid JSON with this exact structure, no additional text, images or explanations
 
