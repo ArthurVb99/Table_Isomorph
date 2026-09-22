@@ -202,9 +202,8 @@ class ImageProjectionProcessor:
                 return self._process_ollama_vlm(image_path, prompt)
             else:
                 raise ValueError(f"Unsupported provider: {self.vlm_provider}")
-        except Exception as e:
-            print(f"VLM processing error: {e}")
-            return None
+        except Exception as error:
+            raise RuntimeError(f"VLM processing error: {error}") from error
     def enforce_no_additional_properties(self, schema: dict) -> dict:
         """
         Recursively set additionalProperties=False on every object schema.
@@ -428,13 +427,21 @@ class ImageProjectionProcessor:
             response = requests.post(
                 f"{self.ollama_base_url}/api/generate",
                 json=data,
-                timeout=60
+                timeout=120
             )
             response.raise_for_status()
             return response.json().get("response", "")
-        except requests.exceptions.ConnectionError:
-            print(f"Could not connect to Ollama at {self.ollama_base_url}")
-            return None
+        except requests.exceptions.ConnectionError as error:
+            raise RuntimeError(
+                f"Could not connect to Ollama at {self.ollama_base_url}: {error}"
+            ) from error
+        except requests.exceptions.HTTPError as error:
+            response_text = error.response.text.strip() if error.response is not None else ""
+            detail = f": {response_text}" if response_text else ""
+            raise RuntimeError(
+                f"Ollama request failed for model '{self.model}' "
+                f"with HTTP {error.response.status_code if error.response is not None else 'error'}{detail}"
+            ) from error
 
     def batch_process_images(self, image_paths: list, output_jsonl_path: str = None) -> Dict[str, Any]:
         """

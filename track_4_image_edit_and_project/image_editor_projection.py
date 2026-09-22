@@ -3,8 +3,6 @@
 from pathlib import Path
 from typing import Optional, Tuple
 
-from PIL import Image
-
 from track_2_image_editing.image_editor import ImagePromptEditor
 from track_3_image_projection.image_projection import ImageProjectionProcessor
 from track_1_llm_prompt.validators import LLMTableModel, validate_llm_output
@@ -36,17 +34,7 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 
 	def _create_edit_and_project_prompt(self, image_path: str) -> str:
 		"""Render the prompt for transposing and extracting a table image."""
-		with Image.open(image_path) as image:
-			target_width, target_height = image.height, image.width
-
-		return self.render_template(
-			"table_transpose_and_structure_extraction.txt",
-			target_w=target_width,
-			target_h=target_height,
-			target_width=target_width,
-			target_height=target_height,
-			target_ratio=target_width / target_height if target_height else 1.0,
-		)
+		return self.render_template("table_transpose_and_structure_extraction.txt")
 
 	def process_edit_and_project(
 		self,
