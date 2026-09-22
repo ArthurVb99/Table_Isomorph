@@ -71,3 +71,7 @@ output_images/
 # Test files
 test_*.py
 *_test.py
+
+bash_files
+
+*.out
