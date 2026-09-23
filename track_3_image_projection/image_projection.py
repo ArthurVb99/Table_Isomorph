@@ -435,6 +435,13 @@ class ImageProjectionProcessor:
                 json=data,
                 timeout=request_timeout
             )
+            # result = response.json()
+            # print({
+            #     "done": result.get("done"),
+            #     "done_reason": result.get("done_reason"),
+            #     "prompt_eval_count": result.get("prompt_eval_count"),
+            #     "eval_count": result.get("eval_count"),
+            # })
             response.raise_for_status()
             return response.json().get("response", "")
         except requests.exceptions.ConnectionError as error:
@@ -514,4 +521,4 @@ if __name__ == "__main__":
         else:
             print("Error:", error)
     else:
-        print("Test image not found. Please provide a valid image path.")
+        print("Test image not found. Please provide a valid image path.")

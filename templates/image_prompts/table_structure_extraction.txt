@@ -14,8 +14,23 @@ Requirements:
 - Include accurate bounding box coordinates [x1,y1,x2,y2] for each cell
 - Generate proper HTML table structure tokens (<thead>, <tr>, <td>, </td>, </tr>, </thead>, <tbody>, etc.)
 - Maintain the exact table layout and hierarchy
-- Return ONLY valid JSON with this exact structure, no additional text or explanations
+OUTPUT CONTRACT:
+- Return exactly one JSON object and nothing else.
+- Do not return Markdown, code fences, explanations, comments, or trailing text.
+- The JSON object MUST have exactly these top-level keys: "imgid", "html", "split", "filename".
+- "html" MUST have exactly these keys: "cells" and "structure".
+- "cells" MUST be an array of objects. Every cell object MUST have exactly two keys:
+  "tokens" and "bbox".
+- "tokens" MUST be an array of strings. Use [] when a cell has no visible text.
+- "bbox" MUST be an array of exactly four integers: [x1, y1, x2, y2].
+- "structure" MUST be an object with exactly one key: "tokens".
+- "structure.tokens" MUST be an array of strings containing the complete HTML structure.
+- NEVER make "structure" a bare array or a string.
+- NEVER put "bbox" outside its cell object.
+- Do not use placeholders such as x1, y1, ..., or "list of tokens".
+- Use the supplied image filename for "filename" and "train" for "split".
 
+Return JSON matching this schema exactly:
 JSON Structure:
 {
   "imgid": 1,
@@ -36,6 +51,8 @@ JSON Structure:
 
 Important:
 - Coordinates should be integers representing pixel positions
-- Tokens should be individual words/characters as they appear in the table
+- Cell tokens should be individual words/characters as they appear in the table
 - Structure tokens should represent the complete HTML table markup
 - Ensure all cells are captured with their exact content and positions
+
+Before finishing, check that every opening and closing brace, bracket, and quote is present; every cell has a bbox; and "html.structure" is an object containing a "tokens" array.

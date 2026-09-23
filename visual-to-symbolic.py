@@ -24,6 +24,7 @@ def main():
     output_jsonl = Path(input_dir).parent / output_jsonl.replace(
         '.jsonl', f'#{vlm_provider}_{model}#.jsonl'
     )
+    os.environ.setdefault("INVALID_OUTPUT_DIR", str(output_jsonl.parent / "invalid_outputs"))
 
     # Check if input is a single file or directory
     input_path = Path(input_dir)

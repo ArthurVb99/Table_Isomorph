@@ -93,6 +93,7 @@ def process_images_to_jsonl(image_paths: list, output_jsonl_path: str,
 
     print(f"Processing {len(items_to_process)} images with {max_workers} threads")
     print(f"Output will be saved to: {output_jsonl_path}")
+    print(f"Invalid responses will be saved to: {output_path / 'invalid_outputs'}")
     print("=" * 60)
 
     # Process images in parallel

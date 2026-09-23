@@ -75,3 +75,5 @@ test_*.py
 bash_files
 
 *.out
+
+invalid_outputs/

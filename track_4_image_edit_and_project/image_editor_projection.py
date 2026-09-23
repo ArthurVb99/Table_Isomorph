@@ -1,5 +1,7 @@
 """Edit table images and project the edited result to validated JSON."""
 
+import json
+import os
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -56,7 +58,8 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 
 			model, error = validate_llm_output(json_response)
 			if error:
-				return None, f"Validation error: {error}"
+				artifact_path = self._save_invalid_response(image_path, json_response, error)
+				return None, f"Validation error: {error} (raw response: {artifact_path})"
 
 			if model:
 				model.imgid = imgid
@@ -66,6 +69,22 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 			return model, None
 		except Exception as error:
 			return None, f"Processing error: {error}"
+
+	def _save_invalid_response(self, image_path: str, response: object, error: str) -> str:
+		"""Save an invalid model response and its validation error for inspection."""
+		output_dir = Path(os.getenv("INVALID_OUTPUT_DIR", "invalid_outputs"))
+		output_dir.mkdir(parents=True, exist_ok=True)
+		stem = Path(image_path).stem
+		response_path = output_dir / f"{stem}.response.txt"
+		error_path = output_dir / f"{stem}.error.txt"
+
+		if isinstance(response, str):
+			response_text = response
+		else:
+			response_text = json.dumps(response, ensure_ascii=False, indent=2)
+		response_path.write_text(response_text, encoding="utf-8")
+		error_path.write_text(error, encoding="utf-8")
+		return str(response_path)
 
 	def extract_table_structure(
 		self,
