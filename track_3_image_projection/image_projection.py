@@ -415,19 +415,25 @@ class ImageProjectionProcessor:
         """Process with Ollama (using vision-capable models like llava)."""
         base64_image = self.encode_image_to_base64(image_path)
 
+        request_timeout = float(os.getenv("OLLAMA_REQUEST_TIMEOUT", "600"))
+        num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "2048"))
+
         data = {
             "model": self.model,  # e.g., "llava", "bakllava"
             "prompt": prompt,
             "images": [base64_image],
             "stream": False,
-            "temperature": 0.1
+            "temperature": 0.1,
+            "format": "json",
+            "think": False,
+            "options": {"num_predict": num_predict},
         }
 
         try:
             response = requests.post(
                 f"{self.ollama_base_url}/api/generate",
                 json=data,
-                timeout=120
+                timeout=request_timeout
             )
             response.raise_for_status()
             return response.json().get("response", "")
@@ -508,4 +514,4 @@ if __name__ == "__main__":
         else:
             print("Error:", error)
     else:
-        print("Test image not found. Please provide a valid image path.")
+        print("Test image not found. Please provide a valid image path.")
