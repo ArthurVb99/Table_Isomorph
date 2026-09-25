@@ -11,10 +11,10 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from dotenv import load_dotenv
 from typing import Any, Optional, List
-from langchain_community.llms import OpenAI
-from langchain_community.chat_models import ChatOpenAI
-# from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
+# from langchain_community.llms import OpenAI
+# from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
+# from langchain_core.messages import HumanMessage
 import requests
 
 from track_1_llm_prompt.validators import LLMTableModel
