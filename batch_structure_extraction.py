@@ -54,7 +54,8 @@ def process_single_image_structure(item_data: dict, output_path: Path, processor
 
 
 def process_images_to_jsonl(image_paths: list, output_jsonl_path: str,
-                           processor: ImageProjectionProcessor = None, max_workers: int = 4) -> dict:
+                           processor: ImageProjectionProcessor = None, max_workers: int = 4,
+                           image_ids: list = None) -> dict:
     """
     Process multiple images to extract table structures and save to JSONL.
 
@@ -63,6 +64,7 @@ def process_images_to_jsonl(image_paths: list, output_jsonl_path: str,
         output_jsonl_path (str): Path to output JSONL file
         processor (ImageProjectionProcessor): Processor instance (created if None)
         max_workers (int): Maximum number of concurrent threads
+        image_ids (list): Optional dataset imgids aligned with image_paths
 
     Returns:
         dict: Processing results and statistics
@@ -84,10 +86,11 @@ def process_images_to_jsonl(image_paths: list, output_jsonl_path: str,
         # Extract metadata from path
         path_obj = Path(image_path)
         split = "train"  # Default
+        imgid = image_ids[i - 1] if image_ids is not None else i
 
         items_to_process.append({
             'image_path': image_path,
-            'imgid': i,
+            'imgid': imgid,
             'split': split
         })
 

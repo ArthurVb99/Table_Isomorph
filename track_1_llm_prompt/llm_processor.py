@@ -355,7 +355,11 @@ class LLMPromptProcessor:
         else:
             text = str(input_data)
 
-        encoding = tiktoken.encoding_for_model(model)
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            # Use a general-purpose estimate for custom/local model names.
+            encoding = tiktoken.get_encoding("cl100k_base")
         tokens = encoding.encode(text)
         return len(tokens)
 

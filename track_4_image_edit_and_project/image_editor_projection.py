@@ -27,6 +27,7 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 		"""Initialize the shared VLM client and combined-operation templates."""
 		self.output_dir = output_dir
 		Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+		self._last_vlm_metadata = {}
 
 		# Initialize provider settings once; both parents otherwise do this.
 		ImageProjectionProcessor.__init__(self, vlm_provider=vlm_provider, model=model)
@@ -73,6 +74,8 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 	def _save_invalid_response(self, image_path: str, response: object, error: str) -> str:
 		"""Save an invalid model response and its validation error for inspection."""
 		output_dir = Path(os.getenv("INVALID_OUTPUT_DIR", "invalid_outputs"))
+		if output_dir.name != self.model:
+			output_dir /= self.model
 		output_dir.mkdir(parents=True, exist_ok=True)
 		stem = Path(image_path).stem
 		response_path = output_dir / f"{stem}.response.txt"
@@ -83,7 +86,14 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 		else:
 			response_text = json.dumps(response, ensure_ascii=False, indent=2)
 		response_path.write_text(response_text, encoding="utf-8")
-		error_path.write_text(error, encoding="utf-8")
+		error_details = {
+			"error": error,
+			"done": self._last_vlm_metadata.get("done"),
+			"done_reason": self._last_vlm_metadata.get("done_reason"),
+			"prompt_eval_count": self._last_vlm_metadata.get("prompt_eval_count"),
+			"eval_count": self._last_vlm_metadata.get("eval_count"),
+		}
+		error_path.write_text(json.dumps(error_details, indent=2), encoding="utf-8")
 		return str(response_path)
 
 	def extract_table_structure(

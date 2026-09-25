@@ -77,3 +77,5 @@ bash_files
 *.out
 
 invalid_outputs/
+
+*.jsonl

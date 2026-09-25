@@ -435,15 +435,16 @@ class ImageProjectionProcessor:
                 json=data,
                 timeout=request_timeout
             )
-            # result = response.json()
-            # print({
-            #     "done": result.get("done"),
-            #     "done_reason": result.get("done_reason"),
-            #     "prompt_eval_count": result.get("prompt_eval_count"),
-            #     "eval_count": result.get("eval_count"),
-            # })
             response.raise_for_status()
-            return response.json().get("response", "")
+            result = response.json()
+            if hasattr(self, "_last_vlm_metadata"):
+                self._last_vlm_metadata = {
+                    "done": result.get("done"),
+                    "done_reason": result.get("done_reason"),
+                    "prompt_eval_count": result.get("prompt_eval_count"),
+                    "eval_count": result.get("eval_count"),
+                }
+            return result.get("response", "")
         except requests.exceptions.ConnectionError as error:
             raise RuntimeError(
                 f"Could not connect to Ollama at {self.ollama_base_url}: {error}"

@@ -108,7 +108,7 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
 
 def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptProcessor,
                        split_focus: str = "train", max_tokens: int = 5000,
-                       max_workers: int = 4):
+                       max_workers: int = 4, selected_imgids: set = None):
     """
     Process JSONL data with parallel processing.
 
@@ -134,20 +134,6 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
                 except json.JSONDecodeError:
                     continue
 
-    # for stemporay testing, only read the fila that has already been trested in extracted_structures#openai_gpt-5#.jsonl
-    # replrace the finle mname in jsonl_path with extracted_structures#openai_gpt-5#.jsonl
-    already_tsrted_file = jsonl_path.replace('PubTabNet_2.0.0.jsonl', 'extracted_structures#openai_gpt-5#.jsonl')
-    imgids_already_set = set()
-    print(f"Reading JSONL file: {already_tsrted_file} for already processed imgids")
-    # only laod the imgids from already_tsrted_file
-    if os.path.exists(already_tsrted_file):
-        with open(already_tsrted_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                try:
-                    data = json.loads(line)
-                    imgids_already_set.add(data.get('imgid'))
-                except json.JSONDecodeError:
-                    continue
     # Collect all items to process
     items_to_process = []
     print(f"Reading JSONL file: {jsonl_path}")
@@ -159,8 +145,7 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
 
             try:
                 data = json.loads(line)
-                # only append the items that are in imgids_already_set
-                if data.get('imgid') in imgids_already_set:
+                if selected_imgids is None or data.get('imgid') in selected_imgids:
                     items_to_process.append({
                         'line_num': line_num,
                         'data': data
