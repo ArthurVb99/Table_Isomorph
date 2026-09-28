@@ -19,6 +19,8 @@ OUTPUT CONTRACT:
 - Return exactly one JSON object and nothing else.
 - Do not return Markdown, code fences, explanations, comments, or trailing text.
 - The JSON object MUST have exactly these top-level keys: "imgid", "html", "split", "filename".
+  - The JSON object MUST have exactly these top-level keys: "imgid", "html", "split", "filename".
+  - Set "imgid" to the integer value {{image_id}}.
 - "html" MUST have exactly these keys: "cells" and "structure".
 - "cells" MUST be an array of objects. Every cell object MUST have exactly two keys:
   "tokens" and "bbox".
@@ -30,10 +32,12 @@ OUTPUT CONTRACT:
 - NEVER put "bbox" outside its cell object.
 - Do not use placeholders such as x1, y1, ..., or "list of tokens".
 - Use the supplied image filename for "filename" and "train" for "split".
-
+Transposition Logic:
+- Original header row becomes leftmost column
+- Original data columns become data rows
 Return JSON matching this schema exactly:
 {
-  "imgid": 1,
+  "imgid": {{image_id}},
   "html": {
     "cells": [
       {

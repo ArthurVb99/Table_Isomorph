@@ -35,9 +35,12 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 		template_dir = Path(__file__).parent.parent / "templates" / "image_edit_and_project_prompts"
 		self.jinja_env.loader.searchpath = [str(template_dir)]
 
-	def _create_edit_and_project_prompt(self, image_path: str) -> str:
+	def _create_edit_and_project_prompt(self, image_path: str, imgid: int) -> str:
 		"""Render the prompt for transposing and extracting a table image."""
-		return self.render_template("table_transpose_and_structure_extraction.txt")
+		return self.render_template(
+			"table_transpose_and_structure_extraction.txt",
+			image_id=imgid,
+		)
 
 	def process_edit_and_project(
 		self,
@@ -51,7 +54,7 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 		return contract of ``ImageProjectionProcessor.extract_table_structure``.
 		"""
 		try:
-			prompt = self._create_edit_and_project_prompt(image_path)
+			prompt = self._create_edit_and_project_prompt(image_path, imgid)
 			json_response = self._process_with_vlm(image_path, prompt)
 
 			if not json_response:

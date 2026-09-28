@@ -4,7 +4,7 @@ pillow==10.1.0
 opencv-python==4.8.1.78
 python-dotenv==1.0.0
 requests==2.31.0
-pydantic==2.5.0
+pydantic>=2.7.4,<3
 
 # Optional: Table processing and OCR (for advanced table transposition)
 # pip install pytesseract opencv-python tabula-py
@@ -14,7 +14,7 @@ pydantic==2.5.0
 
 # Numerical & Data Processing
 numpy
-# pandas==2.0.3
+pandas
 
 # LLM & NLP
 langchain
@@ -30,5 +30,6 @@ beautifulsoup4==4.12.2
 lxml==4.9.3
 
 python-Levenshtein
+rapidfuzz
 apted
 typing-extensions
