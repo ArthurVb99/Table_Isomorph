@@ -73,7 +73,14 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
         # Validate LLM output
         model, err = validate_llm_output(llm_response)
         if err:
-            error_msg = f"Line {line_num}: Validation failed: {err}"
+            model_name = str(processor.model).replace("/", "_").replace("\\", "_")
+            output_dir = Path("invalid_outputs") / f"{model_name}_transposition"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            filename = Path(str(data.get("filename") or imgid)).stem
+            response_path = output_dir / f"{filename}.response.txt"
+            response_path.write_text(str(llm_response), encoding="utf-8")
+
+            error_msg = f"Line {line_num}: Validation failed: {err} (raw response: {response_path})"
             with output_lock:
                 print(error_msg)
             return False, line_num, imgid, None, error_msg

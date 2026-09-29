@@ -41,7 +41,7 @@ def main():
 
     # Get configuration from environment variables
     input_dir = os.getenv("PATH_INPUT_IMAGES", "")
-    output_jsonl = os.getenv("PATH_OUTPUT_JSONL", "extracted_structures.jsonl")
+    output_jsonl = os.getenv("PATH_OUTPUT_JSONL", "results/extracted_structures.jsonl")
     vlm_provider = os.getenv("VLM_PROVIDER", "ollama")
     model = os.getenv("MODEL_PROJECTION", "qwen3.8")
     max_tokens = int(os.getenv("MAX_TOKENS", "5000"))
@@ -105,25 +105,28 @@ def main():
         return
 
     # Process images
-    result = process_images_to_jsonl(
-        image_paths=image_paths,
-        output_jsonl_path=output_jsonl,
-        processor=processor,
-        max_workers=max_threads,
-        image_ids=selected_image_ids,
-    )
+    if not os.path.exists(output_jsonl):
+        result = process_images_to_jsonl(
+            image_paths=image_paths,
+            output_jsonl_path=output_jsonl,
+            processor=processor,
+            max_workers=max_threads,
+            image_ids=selected_image_ids,
+        )
 
     # Print final statistics
-    stats = result["statistics"]
-    print("\n" + "=" * 60)
-    print("PROCESSING COMPLETE")
-    print("=" * 60)
-    print(f"Total images processed: {stats['processed']}")
-    print(f"Successful extractions: {stats['successful']}")
-    print(f"Failed extractions: {stats['failed']}")
-    print(f"Success rate: {(stats['successful']/stats['processed']*100):.1f}%" if stats['processed'] > 0 else "0%")
-    print(f"Output file: {output_jsonl}")
-
+        stats = result["statistics"]
+        print("\n" + "=" * 60)
+        print("PROCESSING COMPLETE")
+        print("=" * 60)
+        print(f"Total images processed: {stats['processed']}")
+        print(f"Successful extractions: {stats['successful']}")
+        print(f"Failed extractions: {stats['failed']}")
+        print(f"Success rate: {(stats['successful']/stats['processed']*100):.1f}%" if stats['processed'] > 0 else "0%")
+        print(f"Output file: {output_jsonl}")
+    else:
+        print(f"Output JSONL already exists: {output_jsonl}, skipping image processing.")
+        
     batch_processor = LLMPromptProcessor(
         provider=os.getenv("LLM_PROVIDER", "ollama"),
         model=os.getenv("MODEL_LLM", model),

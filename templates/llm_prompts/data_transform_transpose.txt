@@ -1,63 +1,28 @@
-Parse, analyze, transpose and transform HTML table data structure:
+Transpose the HTML table represented by the input JSON below.
 
-Input Data:
+INPUT JSON:
 {{ input_data }}
 
-Data Structure Format:
-{
-  "imgid": <integer>,
-  "html": {
-    "cells": [
-      {"tokens": [<token_array>], "bbox": [x1, y1, x2, y2]},
-      ...
-    ],
-    "structure": {"tokens": [<html_structure>]}
-  },
-  "split": <dataset_split>,
-  "filename": <source_file>
-}
+TRANSFORMATION:
+1. Parse the input structure into rows and cells in HTML document order, pairing each structure cell with the corresponding entry in the input cells array.
+2. Build the logical table grid, respecting any rowspan or colspan values in the HTML structure. Do not treat an occupied span position as a new cell.
+3. Transpose the logical grid: original columns become rows and original rows become columns. The original header row becomes the first column. For a rectangular table without spans, if the input has R rows and C columns, the output must have C rows and R columns.
+4. Serialize the transposed cells in row-major order. Move each source cell's tokens and bbox together; do not change, split, merge, duplicate, or omit source cells. When spans exist, transpose their row/column span attributes as well.
+5. Transpose each bbox across the image's top-left diagonal: [x1, y1, x2, y2] becomes [y1, x1, y2, x2]. Keep all four values as integers; do not estimate coordinates.
+6. If an input cell has no valid bbox, use [0, 0, 0, 0] for that output cell. This rule applies even when its tokens array is empty.
+7. Rebuild the complete HTML structure in the same row-major order as the output cells. The number of HTML cell elements must equal the number of output cell objects.
+8. Copy imgid, split, and filename exactly from the input JSON. Do not substitute or invent metadata.
 
-Task Requirements:
-1. Parse the nested structure - extract cells, tokens, and bounding boxes
-2. Analyze the table hierarchy:
-   - Identify header rows (cells within <thead>)
-   - Identify data rows (cells within <tbody>)
-   - Determine row and column count
-3. Reconstruct table as row-column matrix from cells
-4. Apply transposition: swap row positions with column positions
-5. Re-map bounding boxes to reflect transposed layout
-6. Generate new HTML structure preserving table semantics
-7. Return result in identical input structure format
+OUTPUT CONTRACT:
+- Return exactly one JSON object and nothing else: no Markdown, code fences, explanation, or trailing text.
+- The top-level keys must be exactly: "imgid", "html", "split", "filename".
+- "html" must have exactly the keys "cells" and "structure".
+- "cells" must contain exactly as many objects as the input. Every cell object must have exactly the keys "tokens" and "bbox".
+- Every "tokens" value must be an array of strings. Preserve each input token exactly and in order within its cell. Use [] for a cell with no tokens.
+- Every "bbox" value must be an array of exactly four integers, including for cells whose "tokens" value is []. Never omit bbox.
+- "structure" must be an object with exactly one key, "tokens". Its value must be an array of strings containing the complete transposed HTML structure.
+- Before responding, verify that the output row and column counts are transposed (for a rectangular table without spans, output rows = input columns and output columns = input rows), and that cells and structure are in matching row-major order.
+- Preserve the input imgid, split, and filename values exactly, including their JSON types.
+- Do not add keys or use placeholders.
 
-Processing Rules:
-- Preserve all original tokens character-by-character
-- Update bounding boxes (bbox) coordinates after transposition
-- Maintain cell order and nesting relationships
-- Keep metadata fields (imgid, split, filename) unchanged
-- Validate cell count remains constant
-
-Return Structure (same format as input):
-{
-  "imgid": {{ imgid }},
-  "html": {
-    "cells": [
-      {"tokens": [<transposed_tokens>], "bbox": [<new_coordinates>]},
-      ...
-    ],
-    "structure": {"tokens": [<transposed_html_structure>]}
-  },
-  "split": "{{ split }}",
-  "filename": "{{ filename }}"
-}
-
-Transposition Logic:
-- Original header row becomes leftmost column
-- Original data columns become data rows
-- Bounding box coordinates: (x1, y1, x2, y2) adjusted for column-to-row mapping
-- HTML structure updated to reflect new row-column relationships
-
-Validation:
-- Total cell count before = Total cell count after
-- All tokens preserved exactly
-- Structure integrity maintained
 
