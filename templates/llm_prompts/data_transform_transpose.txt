@@ -13,6 +13,20 @@ TRANSFORMATION:
 7. Rebuild the complete HTML structure in the same row-major order as the output cells. The number of HTML cell elements must equal the number of output cell objects.
 8. Copy imgid, split, and filename exactly from the input JSON. Do not substitute or invent metadata.
 
+Return Structure (same format as input):
+{
+  "imgid": {{ imgid }},
+  "html": {
+    "cells": [
+      {"tokens": [<transposed_tokens>], "bbox": [<new_coordinates>]},
+      ...
+    ],
+    "structure": {"tokens": [<transposed_html_structure>]}
+  },
+  "split": "{{ split }}",
+  "filename": "{{ filename }}"
+}
+
 OUTPUT CONTRACT:
 - Return exactly one JSON object and nothing else: no Markdown, code fences, explanation, or trailing text.
 - The top-level keys must be exactly: "imgid", "html", "split", "filename".

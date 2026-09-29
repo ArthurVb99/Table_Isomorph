@@ -67,7 +67,10 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
         # Process with LLM
         llm_response = processor.process_template(
             "data_transform_transpose.txt",
-            input_data=json_str
+            input_data=json_str,
+            imgid=data["imgid"],
+            split=data["split"],
+            filename=data["filename"],
         )
 
         # Validate LLM output
