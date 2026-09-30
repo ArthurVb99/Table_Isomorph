@@ -16,6 +16,25 @@ from track_1_llm_prompt.validators import validate_llm_output, compare_cell_coun
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "5000"))
 
 
+def _save_invalid_output(data: dict, model_name: str, error: str,
+                        response: str = None, thinking: str = None) -> tuple[Path, Path]:
+    """Save a failed sample's raw response and thinking, when available, and error details."""
+    safe_model_name = model_name.replace("/", "_").replace("\\", "_")
+    output_dir = Path(__file__).resolve().parent / "invalid_outputs" / f"{safe_model_name}_transposition"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stem = Path(str(data.get("filename") or "unknown")).stem
+    filename = f"imgid_{data.get('imgid')}_{stem}"
+    response_path = output_dir / f"{filename}.response.txt"
+    error_path = output_dir / f"{filename}.error.txt"
+
+    if response is not None:
+        response_path.write_text(response, encoding="utf-8")
+    if thinking:
+        (output_dir / f"{filename}.thinking.txt").write_text(thinking, encoding="utf-8")
+    error_path.write_text(error, encoding="utf-8")
+    return response_path, error_path
+
+
 def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_focus: str,
                        max_tokens: int, imgids_set: set, output_lock: Lock) -> tuple:
     """
@@ -35,6 +54,7 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
     line_num = item_data['line_num']
     data = item_data['data']
     imgid = data.get('imgid')
+    llm_response = None
 
     try:
         json_str = json.dumps(data)
@@ -51,7 +71,7 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
             error_msg = f"Line {line_num}: Skipping, imgid {imgid} already processed"
             with output_lock:
                 print(error_msg)
-            return False, line_num, imgid, None, error_msg
+            return True, line_num, imgid, None, error_msg
 
         # Check token count
         token_count = processor.count_input_tokens(json_str)
@@ -76,14 +96,11 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
         # Validate LLM output
         model, err = validate_llm_output(llm_response)
         if err:
-            model_name = str(processor.model).replace("/", "_").replace("\\", "_")
-            output_dir = Path("invalid_outputs") / f"{model_name}_transposition"
-            output_dir.mkdir(parents=True, exist_ok=True)
-            filename = Path(str(data.get("filename") or imgid)).stem
-            response_path = output_dir / f"{filename}.response.txt"
-            response_path.write_text(str(llm_response), encoding="utf-8")
-
-            error_msg = f"Line {line_num}: Validation failed: {err} (raw response: {response_path})"
+            error_msg = f"Line {line_num}: Validation failed: {err}"
+            response_path, error_path = _save_invalid_output(
+                data, str(processor.model), error_msg, str(llm_response)
+            )
+            # error_msg += f" (raw response: {response_path}; error: {error_path})"
             with output_lock:
                 print(error_msg)
             return False, line_num, imgid, None, error_msg
@@ -92,6 +109,10 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
         ok = compare_cell_count(data, model.model_dump())
         if not ok:
             error_msg = f"Line {line_num}: Cell count mismatch, skipping"
+            response_path, error_path = _save_invalid_output(
+                data, str(processor.model), error_msg, str(llm_response)
+            )
+            error_msg += f" (raw response: {response_path}; error: {error_path})"
             with output_lock:
                 print(error_msg)
             return False, line_num, imgid, None, error_msg
@@ -106,11 +127,14 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
 
     except json.JSONDecodeError as e:
         error_msg = f"Line {line_num}: Invalid JSON: {e}"
+        _save_invalid_output(data, str(processor.model), error_msg, llm_response)
         with output_lock:
             print(error_msg)
         return False, line_num, imgid, None, error_msg
     except Exception as e:
         error_msg = f"Line {line_num}: Processing error: {e}"
+        _save_invalid_output(data, str(processor.model), error_msg, llm_response,
+                             thinking=getattr(e, "thinking", None))
         with output_lock:
             print(error_msg)
         return False, line_num, imgid, None, error_msg
@@ -193,10 +217,11 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
                 success, line_num, imgid, result_str, error = future.result()
                 processed_count += 1
 
-                if success and result_str:
+                if result_str:
                     with print_lock:
                         out_file.write(result_str)
                         out_file.flush()
+                if success:
                     valid_count += 1
 
     print("\n" + "=" * 60)
@@ -204,6 +229,15 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
     print(f"Total lines processed: {processed_count}")
     print(f"Valid results saved: {valid_count}")
     print(f"Output file: {output_path}")
+
+    stats_path = Path(jsonl_path).parent / f"{output_file.stem}_stats.json"
+    stats = {
+        "processed_count": processed_count,
+        "valid_count": valid_count,
+        "valid_rate": valid_count / processed_count if processed_count else 0.0,
+    }
+    stats_path.write_text(json.dumps(stats, indent=2), encoding="utf-8")
+    print(f"Stats file: {stats_path}")
 
 
 def main():

@@ -62,7 +62,7 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 
 			model, error = validate_llm_output(json_response)
 			if error:
-				artifact_path = self._save_invalid_response(image_path, json_response, error)
+				artifact_path = self._save_invalid_response(image_path, imgid, json_response, error)
 				return None, f"Validation error: {error} (raw response: {artifact_path})"
 
 			if model:
@@ -74,13 +74,13 @@ class ImagePromptEditorProjection(ImageProjectionProcessor, ImagePromptEditor):
 		except Exception as error:
 			return None, f"Processing error: {error}"
 
-	def _save_invalid_response(self, image_path: str, response: object, error: str) -> str:
+	def _save_invalid_response(self, image_path: str, imgid: int, response: object, error: str) -> str:
 		"""Save an invalid model response and its validation error for inspection."""
 		output_dir = Path(os.getenv("INVALID_OUTPUT_DIR", "invalid_outputs"))
 		if output_dir.name != self.model:
 			output_dir /= self.model
 		output_dir.mkdir(parents=True, exist_ok=True)
-		stem = Path(image_path).stem
+		stem = f"imgid_{imgid}_{Path(image_path).stem}"
 		response_path = output_dir / f"{stem}.response.txt"
 		error_path = output_dir / f"{stem}.error.txt"
 

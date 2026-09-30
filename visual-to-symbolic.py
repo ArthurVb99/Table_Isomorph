@@ -47,6 +47,7 @@ def main():
     max_tokens = int(os.getenv("MAX_TOKENS", "5000"))
     max_threads = int(os.getenv("MAX_THREADS", "4"))
     split_focus = os.getenv("SPLIT_FOCUS", "train")
+    llm_think = os.getenv("LLM_THINK", "0").strip().lower() in ("1", "true", "yes")
 
     # format the output file witht vlm provider and model
     if not input_dir:
@@ -57,6 +58,7 @@ def main():
     output_jsonl = Path(input_dir).parent / output_jsonl.replace(
         '.jsonl', f'#{vlm_provider}_{model}#.jsonl'
     )
+    print(f"Output JSONL will be saved to: {output_jsonl}")
     os.environ.setdefault(
         "INVALID_OUTPUT_DIR",
         str(output_jsonl.parent / "invalid_outputs" / model),
@@ -130,10 +132,13 @@ def main():
     batch_processor = LLMPromptProcessor(
         provider=os.getenv("LLM_PROVIDER", "ollama"),
         model=os.getenv("MODEL_LLM", model),
+        think=llm_think,
+        temperature=float(os.getenv("LLM_TEMPERATURE", "0.6"))
     )
     batch_output = Path(PUBTABNET_JSONL).with_name(
         f"{Path(PUBTABNET_JSONL).stem}_{split_focus}_processed_{batch_processor.model}.jsonl"
     )
+    print(f"LLM thinking: {'enabled' if llm_think else 'disabled'}")
     print(f"Batch processing JSONL data from {PUBTABNET_JSONL} to {batch_output}")
     process_jsonl_data(
         PUBTABNET_JSONL,

@@ -22,6 +22,14 @@ from track_1_llm_prompt.validators import LLMTableModel
 load_dotenv()
 
 
+class EmptyResponseError(RuntimeError):
+    """Raised when the LLM returns no answer text; keeps any reasoning output."""
+
+    def __init__(self, message: str, thinking: Optional[str] = None):
+        super().__init__(message)
+        self.thinking = thinking
+
+
 class LLMPromptProcessor:
     """
     Process and interact with Large Language Models using text prompts and templates.
@@ -33,6 +41,7 @@ class LLMPromptProcessor:
         provider: str = "openai",
         model: str = "gpt-3.5-turbo",
         temperature: float =1,
+        think: Optional[bool] = None,
         **kwargs
     ):
         """
@@ -42,11 +51,14 @@ class LLMPromptProcessor:
             provider (str): LLM provider - 'openai', 'ollama', 'huggingface', 'openrouter'
             model (str): Model name for the provider
             temperature (float): Creativity level (0-1)
+            think (Optional[bool]): Enable/disable reasoning for thinking models
+                (Ollama only). None leaves the model default.
             **kwargs: Additional provider-specific parameters
         """
         self.provider = provider.lower()
         self.model = model
         self.temperature = temperature
+        self.think = think
         self.kwargs = kwargs
 
         # Initialize LLM based on provider
@@ -139,7 +151,10 @@ class LLMPromptProcessor:
                 return self._process_openrouter(prompt, max_tokens)
 
         except Exception as e:
-            raise RuntimeError(f"Error processing prompt with {self.provider}: {str(e)}")
+            message = f"Error processing prompt with {self.provider}: {str(e)}"
+            if isinstance(e, EmptyResponseError):
+                raise EmptyResponseError(message, thinking=e.thinking) from e
+            raise RuntimeError(message) from e
         
     def enforce_no_additional_properties(self, schema: Any) -> Any:
         """
@@ -233,18 +248,45 @@ class LLMPromptProcessor:
     def _process_ollama(self, prompt: str, max_tokens: int) -> str:
         """Process prompt using Ollama local server."""
         try:
+            options = {"temperature": self.temperature}
+            num_predict = os.getenv("OLLAMA_NUM_PREDICT")
+            num_ctx = os.getenv("OLLAMA_CONTEXT_LENGTH")
+            options["num_predict"] = int(num_predict) if num_predict else max_tokens
+            if num_ctx:
+                options["num_ctx"] = int(num_ctx)
+
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": options,
+            }
+            if self.think is not None:
+                payload["think"] = self.think
+
             response = requests.post(
                 f"{self.ollama_base_url}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "temperature": self.temperature,
-                },
+                json=payload,
                 #timeout=60
             )
             response.raise_for_status()
-            return response.json().get("response", "")
+            result = response.json()
+            generated_text = result.get("response")
+            if not isinstance(generated_text, str) or not generated_text.strip():
+                metadata = {
+                    key: result.get(key)
+                    for key in ("done", "done_reason", "prompt_eval_count", "eval_count")
+                    if key in result
+                }
+                thinking = result.get("thinking")
+                if thinking:
+                    metadata["thinking_chars"] = len(thinking)
+                raise EmptyResponseError(
+                    "Ollama returned an empty response; metadata: "
+                    f"{json.dumps(metadata, ensure_ascii=False)}",
+                    thinking=thinking,
+                )
+            return generated_text
         except requests.exceptions.ConnectionError:
             raise RuntimeError(
                 f"Could not connect to Ollama at {self.ollama_base_url}. "
@@ -377,6 +419,7 @@ class LLMPromptProcessor:
             str: The LLM response text
         """
         prompt = self.render_template(template_name, **kwargs)
+        # print(f"Rendered prompt from template '{template_name}':\n{prompt}\n")
         return self.process_prompt(prompt, max_tokens)
 
     def process_batch_prompts(self, prompts: list, max_tokens: int = 500) -> list:
