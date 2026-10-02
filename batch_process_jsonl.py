@@ -142,7 +142,8 @@ def process_single_line(item_data: dict, processor: LLMPromptProcessor, split_fo
 
 def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptProcessor,
                        split_focus: str = "train", max_tokens: int = 5000,
-                       max_workers: int = 4, selected_imgids: set = None):
+                       max_workers: int = 4, selected_imgids: set = None,
+                       stats_path: str = None):
     """
     Process JSONL data with parallel processing.
 
@@ -153,6 +154,7 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
         split_focus (str): Target split to process
         max_tokens (int): Maximum token limit
         max_workers (int): Maximum number of concurrent threads
+        stats_path (str): Path to the stats JSON file (defaults next to jsonl_path)
     """
     output_file = Path(output_path)
     print_lock = Lock()
@@ -230,7 +232,7 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
     print(f"Valid results saved: {valid_count}")
     print(f"Output file: {output_path}")
 
-    stats_path = Path(jsonl_path).parent / f"{output_file.stem}_stats.json"
+    stats_path = Path(stats_path) if stats_path else Path(jsonl_path).parent / f"{output_file.stem}_stats.json"
     stats = {
         "processed_count": processed_count,
         "valid_count": valid_count,

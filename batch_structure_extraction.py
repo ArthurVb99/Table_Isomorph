@@ -163,18 +163,18 @@ def main():
 
     # Get configuration from environment variables
     input_dir = os.getenv("PATH_INPUT_IMAGES", "")
-    output_jsonl = os.getenv("PATH_OUTPUT_JSONL", "extracted_structures.jsonl")
+    results_path = Path(os.getenv("PATH_OUTPUT", "results"))
     vlm_provider = os.getenv("VLM_PROVIDER", "openai")
     model = os.getenv("MODEL_PROJECTION", "gpt-5")
     max_threads = int(os.getenv("MAX_THREADS", "4"))
 
-    # format the output file witht vlm provider and model
-    output_jsonl = Path(input_dir).parent / output_jsonl.replace('.jsonl', f'#{vlm_provider}_{model}#.jsonl')
-    
     if not input_dir:
         print("Error: PATH_INPUT_IMAGES environment variable not set")
         print("Set it to the directory containing images or a single image path")
         return
+
+    results_path.mkdir(parents=True, exist_ok=True)
+    output_jsonl = results_path / f"extracted_structures.jsonl"
 
     # Check if input is a single file or directory
     input_path = Path(input_dir)

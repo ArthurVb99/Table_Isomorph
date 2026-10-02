@@ -41,7 +41,7 @@ def main():
 
     # Get configuration from environment variables
     input_dir = os.getenv("PATH_INPUT_IMAGES", "")
-    output_jsonl = os.getenv("PATH_OUTPUT_JSONL", "results/extracted_structures.jsonl")
+    results_path = Path(os.getenv("PATH_OUTPUT", "results"))
     vlm_provider = os.getenv("VLM_PROVIDER", "ollama")
     model = os.getenv("MODEL_PROJECTION", "qwen3.8")
     max_tokens = int(os.getenv("MAX_TOKENS", "5000"))
@@ -54,14 +54,15 @@ def main():
         print("Error: PATH_INPUT_IMAGES environment variable not set")
         print("Set it to the directory containing images or a single image path")
         return
+    
+    results_path.mkdir(parents=True, exist_ok=True)
 
-    output_jsonl = Path(input_dir).parent / output_jsonl.replace(
-        '.jsonl', f'#{vlm_provider}_{model}#.jsonl'
-    )
-    print(f"Output JSONL will be saved to: {output_jsonl}")
+    output_dir_track4 = Path(results_path, "visual_processed_samples.jsonl")
+
+    print(f"Output JSONL will be saved to: {output_dir_track4}")
     os.environ.setdefault(
         "INVALID_OUTPUT_DIR",
-        str(output_jsonl.parent / "invalid_outputs" / model),
+        str(results_path.parent / "invalid_outputs" / model),
     )
 
     if not Path(input_dir).is_dir():
@@ -107,10 +108,10 @@ def main():
         return
 
     # Process images
-    if not os.path.exists(output_jsonl):
+    if not os.path.exists(results_path):
         result = process_images_to_jsonl(
             image_paths=image_paths,
-            output_jsonl_path=output_jsonl,
+            output_jsonl_path=output_dir_track4,
             processor=processor,
             max_workers=max_threads,
             image_ids=selected_image_ids,
@@ -125,9 +126,9 @@ def main():
         print(f"Successful extractions: {stats['successful']}")
         print(f"Failed extractions: {stats['failed']}")
         print(f"Success rate: {(stats['successful']/stats['processed']*100):.1f}%" if stats['processed'] > 0 else "0%")
-        print(f"Output file: {output_jsonl}")
+        print(f"Output file: {output_dir_track4}")
     else:
-        print(f"Output JSONL already exists: {output_jsonl}, skipping image processing.")
+        print(f"Output JSONL already exists: {output_dir_track4}, skipping image processing.")
         
     batch_processor = LLMPromptProcessor(
         provider=os.getenv("LLM_PROVIDER", "ollama"),
@@ -135,9 +136,8 @@ def main():
         think=llm_think,
         temperature=float(os.getenv("LLM_TEMPERATURE", "0.6"))
     )
-    batch_output = Path(PUBTABNET_JSONL).with_name(
-        f"{Path(PUBTABNET_JSONL).stem}_{split_focus}_processed_{batch_processor.model}.jsonl"
-    )
+    # results_dir = Path(PUBTABNET_JSONL).parent / "results" / model
+    batch_output = results_path / "symbolic_processed_samples.jsonl"
     print(f"LLM thinking: {'enabled' if llm_think else 'disabled'}")
     print(f"Batch processing JSONL data from {PUBTABNET_JSONL} to {batch_output}")
     process_jsonl_data(
@@ -148,19 +148,20 @@ def main():
         max_tokens=max_tokens,
         max_workers=max_threads,
         selected_imgids=selected_imgids,
+        stats_path=str(results_path / "symbolic_stats.json"),
     )
 
     metrics_output = Path(os.getenv(
         "PATH_OUTPUT_RESULTS",
-        str(batch_output.with_name(f"{batch_output.stem}_metrics.jsonl")),
+        str(results_path / "metrics.jsonl"),
     ))
     evaluator = TableMetricsEvaluator(
         structure_only=bool(int(os.getenv("STRUCTURE_ONLY", "0"))),
         ignored_nodes=[],
     )
-    print(f"Evaluating results from {output_jsonl} against {batch_output}")
+    print(f"Evaluating results from {output_dir_track4} against {batch_output}")
     evaluation = evaluator.evaluate_jsonl_files(
-        pred_jsonl=str(output_jsonl),
+        pred_jsonl=str(output_dir_track4),
         gt_jsonl=batch_output,
         output_path=str(metrics_output),
         max_workers=max_threads,

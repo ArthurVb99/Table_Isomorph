@@ -152,7 +152,7 @@ Use the provided batch script for large-scale processing:
 ```bash
 # Set environment variables
 set PATH_INPUT_IMAGES=path/to/image/directory
-set PATH_OUTPUT_JSONL=extracted_structures.jsonl
+set PATH_OUTPUT=path/to/results/directory
 set VLM_PROVIDER=openai
 set MODEL=gpt5
 set MAX_THREADS=4
