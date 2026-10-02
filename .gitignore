@@ -81,3 +81,5 @@ invalid_outputs/
 *.jsonl
 
 combine_metrics.py
+
+tex_tables/
