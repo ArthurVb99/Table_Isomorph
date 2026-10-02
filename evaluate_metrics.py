@@ -253,6 +253,7 @@ class TableMetricsEvaluator:
                 'min_teds': 0.0,
                 'max_teds': 1.0,
                 'std_teds': 0.0,
+                'std_teds_struct': 0.0,
                 'std_grits_top': 0.0,
                 'std_grits_con': 0.0,
                 'std_grits_loc': 0.0
@@ -272,6 +273,7 @@ class TableMetricsEvaluator:
                 'min_teds': 0.0,
                 'max_teds': 1.0,
                 'std_teds': 0.0,
+                'std_teds_struct': 0.0,
                 'std_grits_top': 0.0,
                 'std_grits_con': 0.0,
                 'std_grits_loc': 0.0
@@ -288,7 +290,7 @@ class TableMetricsEvaluator:
         mean_grits_top = sum(grits_top_scores) / len(grits_top_scores)
         mean_grits_con = sum(grits_con_scores) / len(grits_con_scores)
         mean_grits_loc = sum(grits_loc_scores) / len(grits_loc_scores)
-        
+ 
         min_teds = min(teds_scores)
         max_teds = max(teds_scores)
         min_grits_top = min(grits_top_scores)
@@ -301,7 +303,10 @@ class TableMetricsEvaluator:
         # Calculate standard deviations
         variance_teds = sum((x - mean_teds) ** 2 for x in teds_scores) / len(teds_scores)
         std_teds = variance_teds ** 0.5
-        
+
+        variance_teds_struct = sum((x - mean_teds_struct) ** 2 for x in teds_struct_scores) / len(teds_struct_scores)
+        std_teds_struct = variance_teds_struct ** 0.5
+
         variance_grits_top = sum((x - mean_grits_top) ** 2 for x in grits_top_scores) / len(grits_top_scores)
         std_grits_top = variance_grits_top ** 0.5
         
@@ -328,6 +333,7 @@ class TableMetricsEvaluator:
             'min_grits_loc': round(min_grits_loc, 4),
             'max_grits_loc': round(max_grits_loc, 4),
             'std_teds': round(std_teds, 4),
+            'std_teds_struct': round(std_teds_struct, 4),
             'std_grits_top': round(std_grits_top, 4),
             'std_grits_con': round(std_grits_con, 4),
             'std_grits_loc': round(std_grits_loc, 4)
