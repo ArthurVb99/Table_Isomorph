@@ -79,3 +79,5 @@ bash_files
 invalid_outputs/
 
 *.jsonl
+
+combine_metrics.py
