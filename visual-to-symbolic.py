@@ -8,32 +8,7 @@ from batch_structure_extraction import process_images_to_jsonl
 from evaluate_metrics import TableMetricsEvaluator
 from track_1_llm_prompt.llm_processor import LLMPromptProcessor
 from track_4_image_edit_and_project.image_editor_projection import ImagePromptEditorProjection
-
-
-PUBTABNET_JSONL = os.getenv(
-    "PUBTABNET_JSONL",
-    "/data/brussel/vo/000/bvo00018/vsc11306/cross-modal_experiments/PubTabNet/PubTabNet_2.0.0.jsonl",
-)
-
-
-def select_tables(dataset_path: str, split: str, max_images: int, max_tokens: int,
-                  model: str) -> tuple[dict, set]:
-    """Select the first image records within the input-token limit."""
-    token_counter = LLMPromptProcessor(provider="ollama", model=model)
-    image_paths = {}
-
-    with open(dataset_path, "r", encoding="utf-8") as dataset_file:
-        for line in dataset_file:
-            if len(image_paths) >= max_images:
-                break
-            data = json.loads(line)
-            if data.get("split") != split:
-                continue
-            if token_counter.count_input_tokens(json.dumps(data)) > max_tokens:
-                continue
-            image_paths[data["imgid"]] = data["filename"]
-
-    return image_paths, set(image_paths)
+from table_selection import PUBTABNET_JSONL, select_tables
 
 
 def main():
@@ -108,7 +83,7 @@ def main():
         return
 
     # Process images
-    if not os.path.exists(results_path):
+    if not os.path.exists(output_dir_track4):
         result = process_images_to_jsonl(
             image_paths=image_paths,
             output_jsonl_path=output_dir_track4,
@@ -140,21 +115,22 @@ def main():
     batch_output = results_path / "symbolic_processed_samples.jsonl"
     print(f"LLM thinking: {'enabled' if llm_think else 'disabled'}")
     print(f"Batch processing JSONL data from {PUBTABNET_JSONL} to {batch_output}")
+
     process_jsonl_data(
-        PUBTABNET_JSONL,
-        str(batch_output),
-        batch_processor,
-        split_focus=split_focus,
-        max_tokens=max_tokens,
-        max_workers=max_threads,
-        selected_imgids=selected_imgids,
-        stats_path=str(results_path / "symbolic_stats.json"),
-    )
+            PUBTABNET_JSONL,
+            str(batch_output),
+            batch_processor,
+            split_focus=split_focus,
+            max_tokens=max_tokens,
+            max_workers=max_threads,
+            selected_imgids=selected_imgids,
+            stats_path=str(results_path / "symbolic_stats.json"),
+        )
 
     metrics_output = Path(os.getenv(
-        "PATH_OUTPUT_RESULTS",
-        str(results_path / "metrics.jsonl"),
-    ))
+            "PATH_OUTPUT_RESULTS",
+            str(results_path / "metrics.jsonl"),
+        ))
     evaluator = TableMetricsEvaluator(
         structure_only=bool(int(os.getenv("STRUCTURE_ONLY", "0"))),
         ignored_nodes=[],

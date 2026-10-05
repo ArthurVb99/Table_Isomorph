@@ -10,6 +10,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from track_3_image_projection.image_projection import ImageProjectionProcessor
+from table_selection import PUBTABNET_JSONL, select_tables
 
 
 def process_single_image_structure(item_data: dict, output_path: Path, processor: ImageProjectionProcessor, lock: Lock) -> tuple:
@@ -103,29 +104,29 @@ def process_images_to_jsonl(image_paths: list, output_jsonl_path: str,
     results = []
     stats = {"processed": 0, "successful": 0, "failed": 0}
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks
-        future_to_item = {
-            executor.submit(process_single_image_structure, item, output_path, processor, print_lock): item
-            for item in items_to_process
-        }
+    with open(output_jsonl_path, 'a', encoding='utf-8') as output_file:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_item = {
+                executor.submit(process_single_image_structure, item, output_path, processor, print_lock): item
+                for item in items_to_process
+            }
 
-        # Collect results as they complete
-        for future in as_completed(future_to_item):
-            success, image_path, result, error = future.result()
-            stats["processed"] += 1
+            # Collect and persist results as they complete
+            for future in as_completed(future_to_item):
+                success, image_path, result, error = future.result()
+                stats["processed"] += 1
 
-            if success and result:
-                results.append(result)
-                stats["successful"] += 1
-            else:
-                stats["failed"] += 1
+                if success and result:
+                    results.append(result)
+                    output_file.write(json.dumps(result, ensure_ascii=False) + '\n')
+                    output_file.flush()
+                    stats["successful"] += 1
+                    print(f"Saved {stats['successful']} results so far")
+                else:
+                    stats["failed"] += 1
 
-    # Save results to JSONL
     if results:
-        with open(output_jsonl_path, 'a', encoding='utf-8') as f:
-            for result in results:
-                f.write(json.dumps(result, ensure_ascii=False) + '\n')
         print(f"\n✓ Saved {len(results)} extracted structures to {output_jsonl_path}")
     else:
         print("\n⚠ No valid structures extracted")
@@ -167,10 +168,18 @@ def main():
     vlm_provider = os.getenv("VLM_PROVIDER", "openai")
     model = os.getenv("MODEL_PROJECTION", "gpt-5")
     max_threads = int(os.getenv("MAX_THREADS", "4"))
+    max_tokens = int(os.getenv("MAX_TOKENS", "5000"))
+    max_processed_images = int(os.getenv("MAX_PROCESSED_IMAGES", "1001"))
+    split_focus = os.getenv("SPLIT_FOCUS", "train")
+    dataset_jsonl = os.getenv("PUBTABNET_JSONL", PUBTABNET_JSONL)
 
     if not input_dir:
         print("Error: PATH_INPUT_IMAGES environment variable not set")
         print("Set it to the directory containing images or a single image path")
+        return
+
+    if not Path(dataset_jsonl).is_file():
+        print(f"Error: Ground-truth JSONL file does not exist: {dataset_jsonl}")
         return
 
     results_path.mkdir(parents=True, exist_ok=True)
@@ -178,19 +187,33 @@ def main():
 
     # Check if input is a single file or directory
     input_path = Path(input_dir)
-    if input_path.is_file():
-        image_paths = [str(input_path)]
-    elif input_path.is_dir():
-        image_paths = find_images_in_directory(input_dir)
-    else:
+    if not input_path.exists():
         print(f"Error: Input path {input_dir} does not exist")
         return
 
+    image_paths_by_id, _ = select_tables(
+        dataset_path=dataset_jsonl,
+        split=split_focus,
+        max_images=max_processed_images,
+        max_tokens=max_tokens,
+        model=model,
+    )
+    selected_images = []
+    for imgid, filename in image_paths_by_id.items():
+        image_path = input_path / filename if input_path.is_dir() else input_path
+        if input_path.is_file() and input_path.name != Path(filename).name:
+            continue
+        if image_path.is_file():
+            selected_images.append((imgid, image_path))
+
+    image_ids = [imgid for imgid, _ in selected_images]
+    image_paths = [str(image_path) for _, image_path in selected_images]
+
     if not image_paths:
-        print(f"No images found in {input_dir}")
+        print(f"No matching images found under the configured limits in {input_dir}")
         return
 
-    print(f"Found {len(image_paths)} images to process")
+    print(f"Selected {len(image_paths)} images from split '{split_focus}' with at most {max_tokens} ground-truth tokens")
 
     # Initialize processor
     try:
@@ -205,7 +228,8 @@ def main():
         image_paths=image_paths,
         output_jsonl_path=output_jsonl,
         processor=processor,
-        max_workers=max_threads
+        max_workers=max_threads,
+        image_ids=image_ids,
     )
 
     # Print final statistics
