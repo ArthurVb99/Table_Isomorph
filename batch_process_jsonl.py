@@ -159,14 +159,21 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
     output_file = Path(output_path)
     print_lock = Lock()
 
-    # Load existing imgids to avoid duplicates
+    # Resume after the highest saved imgid and preserve the cumulative sample count.
     imgids_set = set()
+    max_imgid = None
+    existing_count = 0
     if output_file.exists():
         with open(output_path, 'r', encoding='utf-8') as f:
             for line in f:
                 try:
                     data = json.loads(line)
-                    imgids_set.add(data.get('imgid'))
+                    existing_count += 1
+                    imgid = data.get('imgid')
+                    if imgid is not None:
+                        imgids_set.add(imgid)
+                        if max_imgid is None or imgid > max_imgid:
+                            max_imgid = imgid
                 except json.JSONDecodeError:
                     continue
 
@@ -181,7 +188,10 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
 
             try:
                 data = json.loads(line)
-                if selected_imgids is None or data.get('imgid') in selected_imgids:
+                imgid = data.get('imgid')
+                if max_imgid is not None and imgid is not None and imgid <= max_imgid:
+                    continue
+                if selected_imgids is None or imgid in selected_imgids:
                     items_to_process.append({
                         'line_num': line_num,
                         'data': data
@@ -196,8 +206,7 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
     print("=" * 60)
 
     # Process in parallel
-    processed_count = 0
-    valid_count = 0
+    valid_count = existing_count
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
@@ -217,7 +226,6 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
         with open(output_path, 'a', encoding='utf-8') as out_file:
             for future in as_completed(future_to_item):
                 success, line_num, imgid, result_str, error = future.result()
-                processed_count += 1
 
                 if result_str:
                     with print_lock:
@@ -228,11 +236,12 @@ def process_jsonl_data(jsonl_path: str, output_path: str, processor: LLMPromptPr
 
     print("\n" + "=" * 60)
     print("Processing complete!")
-    print(f"Total lines processed: {processed_count}")
+    print(f"Total lines processed: {len(items_to_process)}")
     print(f"Valid results saved: {valid_count}")
     print(f"Output file: {output_path}")
 
     stats_path = Path(stats_path) if stats_path else Path(jsonl_path).parent / f"{output_file.stem}_stats.json"
+    processed_count = existing_count + len(items_to_process)
     stats = {
         "processed_count": processed_count,
         "valid_count": valid_count,
